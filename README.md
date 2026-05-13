@@ -61,7 +61,7 @@ Next.js Dashboard (STOMP/SockJS)
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/synapse.git
+git clone https://github.com/OwinoMichael/Synapse.git
 cd synapse
 
 # Start RabbitMQ
