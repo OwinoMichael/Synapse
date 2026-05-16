@@ -1,26 +1,245 @@
 @import "tailwindcss";
 
+/* ─── Synapse Design Tokens ─────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background layers */
+  --bg-base:        #032425;
+  --bg-surface:     #0A3D3E;
+  --bg-elevated:    #0F4F50;
+
+  /* Borders */
+  --border-subtle:  #416858;
+  --border-dim:     rgba(65, 104, 88, 0.4);
+  --border-bright:  rgba(241, 255, 88, 0.25);
+
+  /* Text */
+  --text-primary:   #E8F5F5;
+  --text-secondary: #AABFBF;
+  --text-dim:       #5C7A7A;
+
+  /* Signal colors */
+  --yellow:         #F1FF58;
+  --yellow-dim:     rgba(241, 255, 88, 0.12);
+  --yellow-glow:    rgba(241, 255, 88, 0.06);
+
+  --red:            #FF3A6E;
+  --red-dim:        rgba(255, 58, 110, 0.12);
+
+  --purple:         #7B2FBE;
+  --purple-light:   #C084FC;
+  --purple-dim:     rgba(123, 47, 190, 0.12);
+
+  --amber:          #F5A623;
+  --amber-dim:      rgba(245, 166, 35, 0.12);
+
+  /* Glass surface — core recipe */
+  --glass-bg:       rgba(10, 61, 62, 0.55);
+  --glass-border:   rgba(65, 104, 88, 0.45);
+  --glass-blur:     12px;
+
+  --glass-bg-light: rgba(15, 79, 80, 0.35);
+  --glass-border-light: rgba(241, 255, 88, 0.15);
+
+  /* Typography */
+  --font-mono:      'IBM Plex Mono', 'Fira Code', monospace;
+  --font-sans:      'DM Sans', system-ui, sans-serif;
+
+  /* Spacing scale */
+  --radius-sm:      4px;
+  --radius-md:      8px;
+  --radius-lg:      12px;
+  --radius-xl:      16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Base Reset ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+
+  /* Subtle radial glow at top-center — depth without noise */
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(65, 104, 88, 0.35) 0%, transparent 70%);
+}
+
+/* ─── Glassmorphism Utilities ───────────────────────────────────── */
+
+/* Base glass card */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+/* Brighter glass — for highlighted/active panels */
+.glass-bright {
+  background: var(--glass-bg-light);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 0.5px solid var(--glass-border-light);
+  border-radius: var(--radius-lg);
+}
+
+/* Inset glass — for inner cards within a glass panel */
+.glass-inset {
+  background: rgba(3, 36, 37, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 0.5px solid var(--border-dim);
+  border-radius: var(--radius-md);
+}
+
+/* Signal-tinted glass variants */
+.glass-yellow {
+  background: linear-gradient(135deg, rgba(241,255,88,0.07) 0%, var(--glass-bg) 60%);
+  border-color: rgba(241, 255, 88, 0.2);
+}
+
+.glass-red {
+  background: linear-gradient(135deg, rgba(255,58,110,0.07) 0%, var(--glass-bg) 60%);
+  border-color: rgba(255, 58, 110, 0.2);
+}
+
+.glass-purple {
+  background: linear-gradient(135deg, rgba(123,47,190,0.1) 0%, var(--glass-bg) 60%);
+  border-color: rgba(123, 47, 190, 0.25);
+}
+
+.glass-amber {
+  background: linear-gradient(135deg, rgba(245,166,35,0.07) 0%, var(--glass-bg) 60%);
+  border-color: rgba(245, 166, 35, 0.2);
+}
+
+/* ─── Typography Utilities ──────────────────────────────────────── */
+.font-mono  { font-family: var(--font-mono); }
+.font-sans  { font-family: var(--font-sans); }
+
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-dim       { color: var(--text-dim); }
+
+.text-yellow  { color: var(--yellow); }
+.text-red     { color: var(--red); }
+.text-purple  { color: var(--purple-light); }
+.text-amber   { color: var(--amber); }
+
+/* ─── Badge Utilities ───────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid transparent;
+}
+
+.badge-yellow {
+  background: var(--yellow-dim);
+  color: var(--yellow);
+  border-color: rgba(241, 255, 88, 0.3);
+}
+
+.badge-red {
+  background: var(--red-dim);
+  color: var(--red);
+  border-color: rgba(255, 58, 110, 0.3);
+}
+
+.badge-purple {
+  background: var(--purple-dim);
+  color: var(--purple-light);
+  border-color: rgba(123, 47, 190, 0.3);
+}
+
+.badge-amber {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-color: rgba(245, 166, 35, 0.3);
+}
+
+/* ─── Signal Dot ────────────────────────────────────────────────── */
+.signal-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.signal-dot.live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ─── Probability Bar ───────────────────────────────────────────── */
+.prob-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(65, 104, 88, 0.3);
+  overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--yellow);
+  transition: width 0.6s ease;
+}
+
+/* ─── Ticker Animation ──────────────────────────────────────────── */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: ticker-scroll 22s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ─── Focus ring ────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 1.5px solid var(--yellow);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Selection ─────────────────────────────────────────────────── */
+::selection {
+  background: rgba(241, 255, 88, 0.2);
+  color: var(--yellow);
 }
