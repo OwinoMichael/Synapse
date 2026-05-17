@@ -1,5 +1,3 @@
-import { cn } from '@/lib/utils'
-
 type GlassVariant = 'base' | 'bright' | 'inset' | 'yellow' | 'red' | 'purple' | 'amber'
 
 interface GlassCardProps {
@@ -19,15 +17,11 @@ const variantClass: Record<GlassVariant, string> = {
   amber:  'glass glass-amber',
 }
 
-export function GlassCard({
-  children,
-  variant = 'base',
-  className,
-  onClick,
-}: GlassCardProps) {
+export function GlassCard({ children, variant = 'base', className, onClick }: GlassCardProps) {
+  const classes = [variantClass[variant], className].filter(Boolean).join(' ')
   return (
     <div
-      className={cn(variantClass[variant], className)}
+      className={classes}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}

@@ -1,65 +1,59 @@
-import Image from "next/image";
+import { Navbar }      from './components/dashboard/Navbar'
+import { Ticker }      from './components/ui/Ticker'
+import { StatCard }    from './components/ui/StatCard'
+import { PriceChart }  from './components/dashboard/PriceChart'
+import { InsightFeed } from './components/dashboard/InsightFeed'
+import { MarketCard }  from './components/dashboard/MarketCard'
+import type { Market } from './components/dashboard/MarketCard'
+import type { Insight } from './components/dashboard/InsightFeed'
 
-export default function Home() {
+const tickerItems = [
+  { id: '1', text: 'Trump wins 2026 midterms — odds jumped 12% vs news sentiment' },
+  { id: '2', text: 'BTC hits $100k before July — mismatch detected: low social volume' },
+  { id: '3', text: 'Fed rate cut in June — market 78% YES, news implies 43%' },
+]
+
+const insights: Insight[] = [
+  { id: '1', time: '2 min ago',  signal: 'high',    text: 'Fed cut odds spiked 18% — no supporting news found' },
+  { id: '2', time: '11 min ago', signal: 'monitor', text: 'BTC $100k market cooling despite bullish headlines' },
+  { id: '3', time: '34 min ago', signal: 'normal',  text: 'Election market stable — sentiment aligns with pricing' },
+]
+
+const markets: Market[] = [
+  { id: '1', question: 'Will the Fed cut rates in June 2026?',      category: 'POLITICS · ECONOMICS', yesProb: 78, signal: { type: 'high',    text: 'AI: news implies 43% — large gap detected' } },
+  { id: '2', question: 'Will BTC reach $100k before July 2026?',    category: 'CRYPTO',               yesProb: 61, signal: { type: 'monitor', text: 'AI: social volume low for stated confidence' } },
+  { id: '3', question: 'Will GPT-5 release before August 2026?',    category: 'AI / TECH',            yesProb: 44, signal: { type: 'normal',  text: 'AI: sentiment aligned with market pricing' } },
+  { id: '4', question: 'Will it snow in NYC this December?',        category: 'WEATHER',              yesProb: 83, signal: { type: 'none',    text: 'AI: historical data supports 83% estimate' } },
+]
+
+const chartLabels    = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00']
+const marketData     = [54, 56, 55, 58, 62, 67, 65, 71, 74, 70, 76]
+const sentimentData  = [50, 51, 52, 50, 53, 55, 54, 57, 58, 56, 60]
+
+export default function DashboardPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="page-wrapper">
+      <Navbar />
+      <Ticker items={tickerItems} />
+      <div className="grid-stats">
+        <StatCard label="MARKETS TRACKED"  value="1,284" sub="across 7 categories" />
+        <StatCard label="ACTIVE SIGNALS"   value="14"    sub="3 high confidence"   valueColor="purple" />
+        <StatCard label="AVG MISMATCH"     value="+8.3%" sub="↑ vs yesterday"      valueColor="yellow" subColor="yellow" />
+        <StatCard label="VOLATILITY INDEX" value="HIGH"  sub="6 spikes in 1h"      valueColor="red"    subColor="red" />
+      </div>
+      <div className="grid-main">
+        <PriceChart
+          title="PRICE CHART — Will Trump win 2026 midterms?"
+          category="POLITICS"
+          labels={chartLabels}
+          marketData={marketData}
+          sentimentData={sentimentData}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+        <InsightFeed insights={insights} />
+      </div>
+      <div className="grid-markets">
+        {markets.map((m) => <MarketCard key={m.id} market={m} />)}
+      </div>
+    </main>
+  )
 }

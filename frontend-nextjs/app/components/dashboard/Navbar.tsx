@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Dashboard', href: '/' },
@@ -13,48 +12,23 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-
   return (
-    <nav className="flex items-center justify-between mb-5">
-      <span
-        className="font-mono text-lg font-bold tracking-[3px]"
-        style={{ color: 'var(--yellow)' }}
-      >
-        SYNAPSE
-      </span>
-
-      <div className="flex gap-1">
-        {navItems.map(({ label, href }) => {
-          const active = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'font-mono text-[11px] px-3 py-1.5 rounded transition-colors',
-                active
-                  ? 'glass text-yellow border-[0.5px]'
-                  : 'text-secondary hover:text-primary'
-              )}
-              style={{
-                color: active ? 'var(--yellow)' : 'var(--text-secondary)',
-                borderColor: active ? 'var(--border-subtle)' : 'transparent',
-              }}
-            >
-              {label}
-            </Link>
-          )
-        })}
+    <nav className="navbar">
+      <span className="navbar-logo">SYNAPSE</span>
+      <div className="navbar-nav">
+        {navItems.map(({ label, href }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`nav-item${pathname === href ? ' active' : ''}`}
+          >
+            {label}
+          </Link>
+        ))}
       </div>
-
-      <div className="flex items-center gap-2">
-        <span
-          className="signal-dot live"
-          style={{ background: 'var(--yellow)' }}
-        />
-        <span className="font-mono text-[10px]" style={{ color: 'var(--text-dim)' }}>
-          Live
-        </span>
+      <div className="navbar-live">
+        <span className="signal-dot live" style={{ background: 'var(--yellow)' }} />
+        Live
       </div>
     </nav>
   )
