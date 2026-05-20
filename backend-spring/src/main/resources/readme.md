@@ -1,0 +1,58 @@
+Polymarket CLOB WebSocket
+│
+▼
+┌─────────────────────────────┐
+│ Market Data Ingestion Slice │
+└─────────────┬───────────────┘
+│
+▼
+Apache Kafka
+│
+┌─────────┴─────────┐
+▼                   ▼
+┌───────────────┐   ┌────────────────┐
+│ Signal Slice  │   │ Persistence    │
+│ (Spring AI)   │   │ Slice          │
+└───────┬───────┘   └────────────────┘
+│
+▼
+┌────────────────┐
+│ Strategy Slice │
+└───────┬────────┘
+│
+▼
+┌────────────────┐
+│ Execution Slice│
+└───────┬────────┘
+│
+▼
+Polymarket Orders / Alerts
+
+
+
+
+src/main/java/com/owino/polymarket/
+
+├── common/
+│   ├── config/
+│   ├── events/
+│   ├── models/
+│   └── utils/
+│
+├── features/
+│   ├── marketdata/
+│   ├── signals/
+│   ├── strategy/
+│   ├── execution/
+│   ├── positions/
+│   └── backtesting/
+│
+└── PolymarketApplication.java
+
+
+features/marketdata/
+├── api/
+├── application/
+├── domain/
+├── infrastructure/
+└── events/

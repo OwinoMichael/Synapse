@@ -1,0 +1,15 @@
+everything maps directly:
+
+YES/NO prices → CLOB WebSocket price_change events give you real-time bid/ask which translate directly to YES%
+Order book → book channel gives you live bids/asks with sizes — direct 1:1 replacement
+Volume → trade events accumulate into 24h volume
+24h change → calculate from first vs latest price in the trade stream
+Trade count → increment on every trade event
+
+The only things the CLOB WebSocket won't give you:
+
+AI signals/mismatch — that's your Spring AI layer comparing odds vs scraped news (your unique value prop)
+Market metadata (question text, category, closing date) — comes from the Gamma REST API, not the WebSocket
+Sparklines — you build these by buffering the last N price points from the stream in RabbitMQ
+
+So the real architecture is: Gamma API for market metadata + CLOB WebSocket for live prices → RabbitMQ → Spring AI for signals → your frontend. The mock data structure you have now is essentially the same shape as what the real APIs return.
