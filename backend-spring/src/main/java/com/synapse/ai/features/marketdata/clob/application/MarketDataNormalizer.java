@@ -1,6 +1,6 @@
-package com.synapse.ai.features.marketdata.application;
+package com.synapse.ai.features.marketdata.clob.application;
 
-import com.synapse.ai.features.marketdata.events.MarketTickEvent;
+import com.synapse.ai.features.marketdata.clob.events.MarketTickEvent;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 

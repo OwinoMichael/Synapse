@@ -1,4 +1,4 @@
-package com.synapse.ai.features.marketdata.domain;
+package com.synapse.ai.features.marketdata.clob.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;

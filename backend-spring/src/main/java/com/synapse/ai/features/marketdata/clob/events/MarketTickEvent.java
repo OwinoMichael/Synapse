@@ -1,4 +1,4 @@
-package com.synapse.ai.features.marketdata.events;
+package com.synapse.ai.features.marketdata.clob.events;
 
 import java.math.BigDecimal;
 import java.time.Instant;

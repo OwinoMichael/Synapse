@@ -1,4 +1,4 @@
-package com.synapse.ai.features.marketdata.infrastructure.websocket;
+package com.synapse.ai.features.marketdata.clob.infrastructure.websocket;
 
 
 import org.springframework.stereotype.Component;
