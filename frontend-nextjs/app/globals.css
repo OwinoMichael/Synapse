@@ -1387,3 +1387,357 @@ body {
   padding-top: 4px;
   border-top: 0.5px solid rgba(65,104,88,0.2);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIGNALS PAGE — REDESIGN
+═══════════════════════════════════════════════════════════════════ */
+
+.sig-page-header { margin-bottom: 4px; }
+
+.sig-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.sig-live-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #F1FF58;
+  background: rgba(241,255,88,0.08);
+  border: 0.5px solid rgba(241,255,88,0.3);
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.sig-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #F1FF58;
+  animation: pulse-live 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ── Top row ────────────────────────────────────────────────────── */
+.sig-top-row {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+  align-items: start;
+}
+
+/* ── Radar ──────────────────────────────────────────────────────── */
+.radar-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+.radar-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 0.5px solid rgba(65,104,88,0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sig-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-right: 0.5px solid rgba(65,104,88,0.3);
+}
+.sig-counter:last-child { border-right: none; }
+
+.sig-counter-val { font-size: 26px; font-weight: 700; line-height: 1; transition: all 0.3s; }
+.sig-counter-lbl { font-size: 10px; color: #7FA8A8; letter-spacing: 0.5px; }
+
+.radar-bar-wrap { display: flex; flex-direction: column; gap: 5px; }
+
+.radar-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #9ECECE;
+}
+
+.radar-bar-track {
+  height: 4px;
+  background: rgba(65,104,88,0.25);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.radar-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F1FF58, rgba(241,255,88,0.4));
+  border-radius: 2px;
+  transition: width 1s ease;
+}
+
+/* ── Filter col ─────────────────────────────────────────────────── */
+.sig-filter-col { display: flex; flex-direction: column; gap: 8px; }
+
+.sig-filter-btns { display: flex; flex-direction: column; gap: 6px; }
+
+.sig-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 0.5px solid rgba(65,104,88,0.35);
+  background: rgba(10,61,62,0.4);
+  color: #9ECECE;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.sig-filter-btn:hover { color: #E8F5F5; border-color: rgba(65,104,88,0.7); }
+.sig-filter-btn.active { font-weight: 600; }
+
+.sig-filter-count {
+  font-size: 11px;
+  background: rgba(65,104,88,0.3);
+  border-radius: 10px;
+  padding: 1px 7px;
+  color: #9ECECE;
+}
+
+/* ── Signal list ────────────────────────────────────────────────── */
+.sig-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Signal card ────────────────────────────────────────────────── */
+.sig-card {
+  position: relative;
+  background: var(--bg, rgba(10,61,62,0.45));
+  border: 0.5px solid rgba(65,104,88,0.4);
+  border-radius: 12px;
+  padding: 18px 20px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  overflow: hidden;
+}
+
+.sig-card:hover {
+  border-color: var(--accent, #416858);
+  box-shadow: 0 0 24px var(--glow, transparent);
+  transform: translateY(-1px);
+}
+
+.sig-card.expanded {
+  border-color: var(--accent, #416858);
+  box-shadow: 0 0 32px var(--glow, transparent);
+}
+
+/* Animated left accent bar */
+.sig-card-border {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent, #416858);
+  border-radius: 12px 0 0 12px;
+  opacity: 0.8;
+}
+
+/* Pulse on high-confidence cards */
+.sig-card[style*="FF3A6E"] .sig-card-border {
+  animation: border-pulse 2s ease-in-out infinite;
+}
+
+@keyframes border-pulse {
+  0%,100% { opacity: 0.6; }
+  50%      { opacity: 1;   box-shadow: 0 0 8px #FF3A6E; }
+}
+
+.sig-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sig-top-left  { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.sig-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+
+.sig-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sig-time     { font-size: 11px; color: #7FA8A8; }
+.sig-cat      { font-size: 10px; color: #9ECECE; letter-spacing: 0.5px; }
+
+.sig-urgent {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #FF3A6E;
+  animation: urgent-flash 1.2s ease-in-out infinite;
+}
+
+@keyframes urgent-flash {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.sig-market {
+  font-size: 15px;
+  font-weight: 600;
+  color: #E8F5F5;
+  line-height: 1.3;
+}
+
+.sig-gap-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 0.5px solid;
+}
+
+/* ── Gap gauge ──────────────────────────────────────────────────── */
+.sig-mid {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.gap-gauge { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+.gap-gauge-track {
+  position: relative;
+  height: 8px;
+  background: rgba(65,104,88,0.2);
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.gap-gauge-ai, .gap-gauge-mkt {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  border-radius: 4px;
+  transition: width 0.8s ease;
+}
+
+.gap-gauge-ai  { opacity: 0.6; }
+.gap-gauge-mkt { opacity: 0.85; }
+
+.gap-gauge-diff {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  border-radius: 4px;
+  transition: all 0.8s ease;
+}
+
+.gap-gauge-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sig-summary {
+  font-size: 12px;
+  color: #9ECECE;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+/* ── Expanded detail ────────────────────────────────────────────── */
+.sig-detail {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 0.5px solid rgba(65,104,88,0.3);
+  animation: detail-open 0.2s ease-out;
+}
+
+@keyframes detail-open {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sig-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+.sig-section { display: flex; flex-direction: column; gap: 8px; }
+
+.sig-section-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #7FA8A8;
+}
+
+.sig-keywords { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.sig-keyword {
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: rgba(241,255,88,0.07);
+  color: #F1FF58;
+  border: 0.5px solid rgba(241,255,88,0.2);
+}
+
+.sig-sources { display: flex; flex-direction: column; gap: 6px; }
+
+.sig-source-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.sig-source-name { color: #9ECECE; width: 80px; flex-shrink: 0; }
+
+.sig-source-bar-wrap {
+  flex: 1;
+  height: 3px;
+  background: rgba(65,104,88,0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sig-source-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  opacity: 0.7;
+}
+
+.sig-source-val { font-size: 10px; font-weight: 600; width: 64px; text-align: right; flex-shrink: 0; }
+
+.sig-odds-big {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sig-odds-col { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.sig-odds-num { font-size: 22px; font-weight: 700; line-height: 1; }
+.sig-odds-lbl { font-size: 10px; color: #7FA8A8; }
+.sig-odds-vs  { font-size: 11px; color: #416858; font-weight: 700; }
+
+/* Expand hint */
+.sig-expand-hint {
+  text-align: center;
+  font-size: 10px;
+  color: #5C7A7A;
+  letter-spacing: 0.5px;
+  margin-top: 6px;
+  transition: color 0.15s;
+}
+.sig-card:hover .sig-expand-hint { color: #9ECECE; }
