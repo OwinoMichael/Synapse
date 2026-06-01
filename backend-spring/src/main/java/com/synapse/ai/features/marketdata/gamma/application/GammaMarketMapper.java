@@ -3,7 +3,7 @@ package com.synapse.ai.features.marketdata.gamma.application;
 import com.synapse.ai.features.marketdata.gamma.domain.GammaMarket;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.client.GammaApiResponse;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketEntity;
-import com.fasterxml.jackson.core.type.TypeReference;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
