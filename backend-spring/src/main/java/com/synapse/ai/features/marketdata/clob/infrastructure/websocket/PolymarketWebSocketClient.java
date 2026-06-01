@@ -46,10 +46,10 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
 
     private final MarketDataUseCase  useCase;
     private final ObjectMapper mapper  = new ObjectMapper();
-    private final HttpClient         http    = HttpClient.newHttpClient();
+    private final HttpClient http    = HttpClient.newHttpClient();
 
-    private volatile WebSocket           socket;
-    private final    StringBuilder       messageBuffer = new StringBuilder();
+    private volatile WebSocket socket;
+    private final StringBuilder messageBuffer = new StringBuilder();
     private final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor();
 
