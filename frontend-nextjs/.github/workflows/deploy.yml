@@ -4,10 +4,11 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'synapse/**'
-      - 'synapse-backend/**'
+      - 'backend-spring/**'      
+      - 'frontend-nextjs/**'     
       - 'docker-compose.prod.yml'
       - '.github/workflows/deploy-synapse.yml'
+
 
 jobs:
   deploy:
