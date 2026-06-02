@@ -1,0 +1,59 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Client, IMessage } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+
+export interface MarketTickMessage {
+  marketId:  string
+  assetId:   string
+  yesPrice:  number   // 0.00 – 1.00
+  size:      number
+  side:      string
+  eventType: string
+  timestamp: string
+}
+
+/**
+ * Subscribes to live price ticks for a specific market.
+ * Spring pushes to /topic/market-ticks/{marketId}
+ *
+ * Usage:
+ *   const { tick, connected } = useMarketTick(marketId)
+ *   // tick.yesPrice → current YES probability
+ */
+export function useMarketTick(marketId: string | null) {
+  const [tick,      setTick]      = useState<MarketTickMessage | null>(null)
+  const [connected, setConnected] = useState(false)
+  const clientRef = useRef<Client | null>(null)
+
+  useEffect(() => {
+    if (!marketId) return
+
+    const client = new Client({
+      webSocketFactory: () =>
+        new SockJS(process.env.NEXT_PUBLIC_SPRING_WS_URL ?? 'http://localhost:8080/ws'),
+      reconnectDelay: 5000,
+
+      onConnect: () => {
+        setConnected(true)
+        client.subscribe(`/topic/market-ticks/${marketId}`, (frame: IMessage) => {
+          try {
+            setTick(JSON.parse(frame.body))
+          } catch (e) {
+            console.error('Failed to parse tick', e)
+          }
+        })
+      },
+
+      onDisconnect: () => setConnected(false),
+    })
+
+    client.activate()
+    clientRef.current = client
+
+    return () => { client.deactivate() }
+  }, [marketId])
+
+  return { tick, connected }
+}

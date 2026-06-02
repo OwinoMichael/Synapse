@@ -1,0 +1,78 @@
+version: "3.9"
+
+# =============================================================================
+# Synapse — Local Development
+# =============================================================================
+# Starts: Postgres, Kafka, Zookeeper, pgAdmin
+# Does NOT start frontend or backend — run those with npm run dev / mvn spring-boot:run
+# so you get hot reload.
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d
+#   # then in separate terminals:
+#   cd synapse-backend && mvn spring-boot:run
+#   cd synapse         && npm run dev
+# =============================================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: synapse-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       synapse
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+      - ./synapse-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: synapse-zookeeper-local
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME:   2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: synapse-kafka-local
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID:                        1
+      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS:             PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "true"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: synapse-pgadmin-local
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@synapse.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-local-data:
