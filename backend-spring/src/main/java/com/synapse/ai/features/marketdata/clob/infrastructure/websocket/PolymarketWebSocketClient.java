@@ -1,6 +1,7 @@
 package com.synapse.ai.features.marketdata.clob.infrastructure.websocket;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synapse.ai.features.marketdata.clob.application.MarketDataUseCase;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -8,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+
 
 import java.net.URI;
 import java.net.http.HttpClient;

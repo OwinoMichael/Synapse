@@ -1,5 +1,7 @@
 package com.synapse.ai.features.marketdata.gamma.application;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synapse.ai.features.marketdata.gamma.domain.GammaMarket;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.client.GammaApiResponse;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketEntity;
@@ -8,7 +10,7 @@ import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.Marke
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+
 
 import java.math.BigDecimal;
 import java.time.Instant;

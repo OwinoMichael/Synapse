@@ -1,0 +1,115 @@
+version: "3.9"
+
+# =============================================================================
+# Synapse — Production
+# =============================================================================
+# All services run in containers.
+# Postgres and Kafka data are persisted in named volumes.
+# Frontend and backend are exposed only to the host (nginx proxies them).
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# =============================================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: synapse-postgres
+    restart: always
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./synapse-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - synapse-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: synapse-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME:   2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+    networks:
+      - synapse-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: synapse-kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID:                        1
+      KAFKA_ZOOKEEPER_CONNECT:                zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS:             PLAINTEXT://kafka:29092
+      KAFKA_LISTENERS:                        PLAINTEXT://0.0.0.0:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - synapse-net
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./synapse-backend
+      dockerfile: Dockerfile
+    container_name: synapse-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_PROFILES_ACTIVE:     prod
+    ports:
+      - "127.0.0.1:8083:8080"   # only accessible from host (nginx proxies)
+    networks:
+      - synapse-net
+
+  frontend:
+    build:
+      context: ./synapse
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SPRING_WS_URL:  ${NEXT_PUBLIC_SPRING_WS_URL}
+        NEXT_PUBLIC_API_BASE_URL:   ${NEXT_PUBLIC_API_BASE_URL}
+    container_name: synapse-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:3004:3000"   # only accessible from host (nginx proxies)
+    networks:
+      - synapse-net
+
+volumes:
+  postgres-data:
+  zookeeper-data:
+  kafka-data:
+
+networks:
+  synapse-net:
+    driver: bridge
