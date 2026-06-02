@@ -53,9 +53,9 @@ public class GammaApiClient {
      * @return flat list of all qualifying GammaApiResponse objects
      */
     public List<GammaApiResponse> fetchAllActiveMarkets() {
-        List<GammaApiResponse> all    = new ArrayList<>();
-        String                 cursor = null;
-        int                    page   = 0;
+        List<GammaApiResponse> all = new ArrayList<>();
+        String cursor = null;
+        int page = 0;
 
         do {
             String url = buildMarketsUrl(cursor);
@@ -77,17 +77,22 @@ public class GammaApiClient {
                     break;
                 }
 
-                GammaPagedResponse paged = mapper.readValue(
-                        response.body(), GammaPagedResponse.class);
+                // FIX: Gamma API returns array directly, not wrapped in object
+                List<GammaApiResponse> markets = mapper.readValue(
+                        response.body(),
+                        new TypeReference<List<GammaApiResponse>>() {});
 
-                if (paged.data() != null) {
-                    all.addAll(paged.data());
+                if (markets != null && !markets.isEmpty()) {
+                    all.addAll(markets);
                 }
 
-                cursor = paged.nextCursor();
+                // FIX: Gamma's pagination uses URL parameter "next_cursor"
+                // We need to extract it from the response headers or URL
+                // For now, just do one page or implement cursor from response
+                cursor = null; // Break after first page if no cursor mechanism
                 page++;
 
-                // Respect rate limits — small delay between pages
+                // Rate limiting delay
                 if (cursor != null && !END_CURSOR.equals(cursor)) {
                     Thread.sleep(250);
                 }

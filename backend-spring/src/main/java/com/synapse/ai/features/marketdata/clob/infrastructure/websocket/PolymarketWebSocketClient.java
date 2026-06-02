@@ -42,9 +42,7 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
     private static final String WSS_URL  = "wss://ws-subscriptions-clob.polymarket.com/ws/market";
     private static final long   MAX_BACKOFF_SEC = 60L;
 
-    @Value("${polymarket.clob.asset-ids}")
-    private List<String> assetIds;          // injected from application.yml
-
+    private final PolymarketClobProperties clobProperties;
     private final MarketDataUseCase  useCase;
     private final ObjectMapper mapper  = new ObjectMapper();
     private final HttpClient http    = HttpClient.newHttpClient();
@@ -56,7 +54,8 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
 
     private int  reconnectAttempt = 0;
 
-    public PolymarketWebSocketClient(MarketDataUseCase useCase) {
+    public PolymarketWebSocketClient(PolymarketClobProperties clobProperties, MarketDataUseCase useCase) {
+        this.clobProperties = clobProperties;
         this.useCase = useCase;
     }
 
@@ -109,7 +108,7 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
 
     @Override
     public void onOpen(WebSocket ws) {
-        log.info("WebSocket opened — sending subscription for {} asset IDs", assetIds.size());
+        log.info("WebSocket opened — sending subscription for {} asset IDs", clobProperties.getAssetIds().size());
         this.socket           = ws;
         this.reconnectAttempt = 0;
 
@@ -155,7 +154,7 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
             // custom_feature_enabled = true → also receive best_bid_ask,
             // new_market, market_resolved events
             Map<String, Object> payload = Map.of(
-                    "assets_ids",              assetIds,
+                    "assets_ids",              clobProperties.getAssetIds(),
                     "type",                    "market",
                     "custom_feature_enabled",  true
             );

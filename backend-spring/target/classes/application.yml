@@ -10,11 +10,16 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate        # validate in prod ? schema.sql owns DDL
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  sql:
+    init:
+      mode: always              # always run schema.sql on startup
+      schema-locations: classpath:db/schema.sql
 
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
@@ -31,6 +36,8 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.synapse.ai.features.marketdata.clob.events"
+
+
 
 # ?? Polymarket ???????????????????????????????????????????????????????
 polymarket:
