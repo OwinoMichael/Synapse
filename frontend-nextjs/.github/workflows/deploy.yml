@@ -7,7 +7,7 @@ on:
       - 'backend-spring/**'      
       - 'frontend-nextjs/**'     
       - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy-synapse.yml'
+      - '.github/workflows/deploy.yml'
 
 
 jobs:
