@@ -31,15 +31,15 @@ jobs:
             git pull origin main
 
             # === Step 3: Write prod env file ===
-            echo "Writing .env.prod..."
-            cat > env.prod << 'ENVEOF'
-            DB_NAME=${{ secrets.SYNAPSE_DB_NAME }}
-            DB_USER=${{ secrets.SYNAPSE_DB_USER }}
-            DB_PASS=${{ secrets.SYNAPSE_DB_PASS }}
-            NEXT_PUBLIC_SPRING_WS_URL=https://mikeowino.cloud/synapse/ws
-            NEXT_PUBLIC_API_BASE_URL=https://mikeowino.cloud/synapse/api
-            NEXT_PUBLIC_BASE_PATH=/synapse
-            ENVEOF
+            #echo "Writing .env.prod..."
+            #cat > env.prod << 'ENVEOF'
+            #DB_NAME=${{ secrets.SYNAPSE_DB_NAME }}
+            #DB_USER=${{ secrets.SYNAPSE_DB_USER }}
+            #DB_PASS=${{ secrets.SYNAPSE_DB_PASS }}
+            #NEXT_PUBLIC_SPRING_WS_URL=https://mikeowino.cloud/synapse/ws
+            #NEXT_PUBLIC_API_BASE_URL=https://mikeowino.cloud/synapse/api
+            #NEXT_PUBLIC_BASE_PATH=/synapse
+            #ENVEOF
 
             # === Step 4: Stop existing containers ===
             echo "Stopping existing containers..."
