@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./synapse-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./backend-spring/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
@@ -69,7 +69,7 @@ services:
 
   backend:
     build:
-      context: ./synapse-backend
+      context: ./backend-spring
       dockerfile: Dockerfile
     container_name: synapse-backend
     restart: always
@@ -91,7 +91,7 @@ services:
 
   frontend:
     build:
-      context: ./synapse
+      context: ./frontend-nextjs
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SPRING_WS_URL:  ${NEXT_PUBLIC_SPRING_WS_URL}
