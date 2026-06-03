@@ -4,8 +4,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'synapse/**'
-      - 'synapse-backend/**'
+      - 'Synapse/**'
+      - 'backend-spring/**'
       - 'docker-compose.prod.yml'
       - '.github/workflows/deploy-synapse.yml'
 
