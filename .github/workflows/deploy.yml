@@ -4,11 +4,10 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'backend-spring/**'      
-      - 'frontend-nextjs/**'     
+      - 'synapse/**'
+      - 'synapse-backend/**'
       - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy.yml'
-
+      - '.github/workflows/deploy-synapse.yml'
 
 jobs:
   deploy:
@@ -33,7 +32,7 @@ jobs:
 
             # === Step 3: Write prod env file ===
             echo "Writing .env.prod..."
-            cat > .env.prod << 'ENVEOF'
+            cat > env.prod << 'ENVEOF'
             DB_NAME=${{ secrets.SYNAPSE_DB_NAME }}
             DB_USER=${{ secrets.SYNAPSE_DB_USER }}
             DB_PASS=${{ secrets.SYNAPSE_DB_PASS }}
@@ -49,7 +48,7 @@ jobs:
             # === Step 5: Build and start ===
             echo "Building and starting containers..."
             docker compose -f docker-compose.prod.yml \
-              --env-file .env.prod \
+              --env-file env.prod \
               up -d --build
 
             # === Step 6: Wait for backend health ===
