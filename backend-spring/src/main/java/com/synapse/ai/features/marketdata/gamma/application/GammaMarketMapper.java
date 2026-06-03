@@ -1,16 +1,13 @@
 package com.synapse.ai.features.marketdata.gamma.application;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synapse.ai.features.marketdata.gamma.domain.GammaMarket;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.client.GammaApiResponse;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketEntity;
-
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,7 +30,7 @@ import java.util.stream.Collectors;
 public class GammaMarketMapper {
 
     private static final Logger log    = LoggerFactory.getLogger(GammaMarketMapper.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper  mapper = new ObjectMapper();
 
     // ── DTO → Domain ───────────────────────────────────────────────
 
@@ -55,7 +52,7 @@ public class GammaMarketMapper {
                 tags,
                 extractEventId(dto),
                 extractEventTitle(dto),
-                dto.clobTokenIds() != null ? dto.clobTokenIds() : Collections.emptyList(),
+                parseClobTokenIds(dto.clobTokenIds()),
                 yesPrice,
                 noPrice,
                 dto.active(),
@@ -104,6 +101,16 @@ public class GammaMarketMapper {
     }
 
     // ── Helpers ────────────────────────────────────────────────────
+
+    private List<String> parseClobTokenIds(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            return mapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse clobTokenIds: {}", json);
+            return Collections.emptyList();
+        }
+    }
 
     private List<BigDecimal> parseOutcomePrices(String json) {
         if (json == null || json.isBlank()) return Collections.emptyList();

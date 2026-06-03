@@ -39,10 +39,11 @@ public record GammaApiResponse(
         List<GammaTagDto> tags,
 
         /**
-         * clobTokenIds is a JSON array: ["<yes-token>", "<no-token>"]
+         * clobTokenIds arrives as a JSON-encoded string: "[\"token1\",\"token2\"]"
+         * We store it as a raw string and parse it manually in the mapper.
          */
         @JsonProperty("clobTokenIds")
-        List<String> clobTokenIds,
+        String clobTokenIds,
 
         /**
          * outcomePrices is a JSON-encoded string array: "[\"0.72\",\"0.28\"]"
