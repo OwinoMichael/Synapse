@@ -1,0 +1,74 @@
+name: Deploy Synapse
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'synapse/**'
+      - 'synapse-backend/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy-synapse.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host:     ${{ secrets.DROPLET_IP }}
+          username: root
+          key:      ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            echo "=== Synapse Deploy Started ==="
+
+            # === Step 1: Navigate to project ===
+            cd /root/projects/Synapse
+
+            # === Step 2: Pull latest code ===
+            echo "Pulling latest code..."
+            git pull origin main
+
+            # === Step 3: Write prod env file ===
+            #echo "Writing .env.prod..."
+            #cat > env.prod << 'ENVEOF'
+            #DB_NAME=${{ secrets.SYNAPSE_DB_NAME }}
+            #DB_USER=${{ secrets.SYNAPSE_DB_USER }}
+            #DB_PASS=${{ secrets.SYNAPSE_DB_PASS }}
+            #NEXT_PUBLIC_SPRING_WS_URL=https://mikeowino.cloud/synapse/ws
+            #NEXT_PUBLIC_API_BASE_URL=https://mikeowino.cloud/synapse/api
+            #NEXT_PUBLIC_BASE_PATH=/synapse
+            #ENVEOF
+
+            # === Step 4: Stop existing containers ===
+            echo "Stopping existing containers..."
+            docker compose -f docker-compose.prod.yml down
+
+            # === Step 5: Build and start ===
+            echo "Building and starting containers..."
+            docker compose -f docker-compose.prod.yml \
+              --env-file env.prod \
+              up -d --build
+
+            # === Step 6: Wait for backend health ===
+            echo "Waiting for backend to be healthy..."
+            sleep 15
+            for i in $(seq 1 10); do
+              if curl -sf http://localhost:8083/actuator/health > /dev/null; then
+                echo "Backend is healthy"
+                break
+              fi
+              echo "Attempt $i: backend not ready yet..."
+              sleep 5
+            done
+
+            # === Step 7: Reload nginx (no restart, zero downtime) ===
+            echo "Reloading nginx..."
+            nginx -t && systemctl reload nginx
+
+            # === Step 8: Cleanup ===
+            echo "Cleaning unused Docker images..."
+            docker image prune -f
+
+            echo "=== Synapse Deploy Complete ==="
