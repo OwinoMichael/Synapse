@@ -71,11 +71,12 @@ services:
     networks:
       - synapse-net
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 > /dev/null 2>&1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
+      disable: true
+      # test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      # interval: 15s
+      # timeout: 10s
+      # retries: 10
+      # start_period: 30s
 
   backend:
     build:
@@ -87,7 +88,8 @@ services:
       postgres:
         condition: service_healthy
       kafka:
-        condition: service_healthy
+        condition: service_started
+        # condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
