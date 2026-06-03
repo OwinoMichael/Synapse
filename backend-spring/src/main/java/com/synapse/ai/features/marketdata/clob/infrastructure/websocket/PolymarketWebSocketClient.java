@@ -1,132 +1,119 @@
 package com.synapse.ai.features.marketdata.clob.infrastructure.websocket;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synapse.ai.features.marketdata.clob.application.MarketDataUseCase;
+import com.synapse.ai.features.marketdata.gamma.application.GammaMarketsRefreshedEvent;
+import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
- * Connects to the Polymarket CLOB WebSocket market channel and feeds
- * every incoming message to MarketDataUseCase.
+ * Connects to the Polymarket CLOB WebSocket market channel.
  *
- * Endpoint  : wss://ws-subscriptions-clob.polymarket.com/ws/market
- * Channel   : market  (public — no auth required)
+ * Asset ID source priority:
+ *   1. Database  — populated by Gamma sync (preferred)
+ *   2. application.yml fallback — used on first startup before Gamma syncs
  *
- * On connect we send a subscription message specifying the asset IDs
- * (token IDs) we want to track. These come from application.yml and
- * are fetched initially from the Gamma REST API (see gamma feature).
- *
- * Reconnect : exponential back-off (1s → 2s → 4s … cap 60s)
+ * Listens for GammaMarketsRefreshedEvent and re-sends its subscription
+ * with the latest asset IDs from the database after every Gamma sync.
  */
 @Component
 public class PolymarketWebSocketClient implements WebSocket.Listener {
 
-    private static final Logger log = LoggerFactory.getLogger(PolymarketWebSocketClient.class);
+    private static final Logger log         = LoggerFactory.getLogger(PolymarketWebSocketClient.class);
+    private static final String WSS_URL     = "wss://ws-subscriptions-clob.polymarket.com/ws/market";
+    private static final long   MAX_BACKOFF = 60L;
 
-    private static final String WSS_URL  = "wss://ws-subscriptions-clob.polymarket.com/ws/market";
-    private static final long   MAX_BACKOFF_SEC = 60L;
 
-    private final PolymarketClobProperties clobProperties;
-    private final MarketDataUseCase  useCase;
-    private final ObjectMapper mapper  = new ObjectMapper();
-    private final HttpClient http    = HttpClient.newHttpClient();
+    private final PolymarketClobProperties fallbackAssetIds;
 
-    private volatile WebSocket socket;
-    private final StringBuilder messageBuffer = new StringBuilder();
-    private final ScheduledExecutorService scheduler =
+    private final MarketDataUseCase   useCase;
+    private final MarketRepository    marketRepository;
+    private final ObjectMapper        mapper    = new ObjectMapper();
+    private final HttpClient          http      = HttpClient.newHttpClient();
+
+    private volatile WebSocket                socket;
+    private final    StringBuilder            buffer    = new StringBuilder();
+    private final    ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor();
 
-    private int  reconnectAttempt = 0;
+    private int reconnectAttempt = 0;
 
-    public PolymarketWebSocketClient(PolymarketClobProperties clobProperties, MarketDataUseCase useCase) {
-        this.clobProperties = clobProperties;
-        this.useCase = useCase;
+    public PolymarketWebSocketClient(
+            PolymarketClobProperties fallbackAssetIds, MarketDataUseCase useCase,
+            MarketRepository  marketRepository) {
+        this.fallbackAssetIds = fallbackAssetIds;
+        this.useCase          = useCase;
+        this.marketRepository = marketRepository;
     }
-
-    // ── Lifecycle ──────────────────────────────────────────────────
 
     @PostConstruct
-    public void start() {
-        connect(0);
-    }
+    public void start() { connect(0); }
 
     @PreDestroy
     public void stop() {
         scheduler.shutdownNow();
-        if (socket != null) {
-            socket.sendClose(WebSocket.NORMAL_CLOSURE, "shutdown").join();
+        if (socket != null) socket.sendClose(WebSocket.NORMAL_CLOSURE, "shutdown").join();
+    }
+
+    @EventListener
+    public void onGammaRefreshed(GammaMarketsRefreshedEvent event) {
+        if (socket != null && !socket.isInputClosed()) {
+            log.info("Gamma refreshed — updating CLOB subscription");
+            sendSubscription(socket);
         }
     }
 
-    // ── Connection ─────────────────────────────────────────────────
-
     private void connect(long delaySeconds) {
         Runnable task = () -> {
-            log.info("Connecting to Polymarket CLOB WebSocket (attempt {})…",
-                    reconnectAttempt + 1);
+            log.info("Connecting to CLOB WebSocket (attempt {})...", reconnectAttempt + 1);
             try {
-                http.newWebSocketBuilder()
-                        .buildAsync(URI.create(WSS_URL), this)
-                        .join();
+                http.newWebSocketBuilder().buildAsync(URI.create(WSS_URL), this).join();
             } catch (Exception e) {
-                log.error("WebSocket connection failed: {}", e.getMessage());
+                log.error("Connection failed: {}", e.getMessage());
                 scheduleReconnect();
             }
         };
-
-        if (delaySeconds == 0) {
-            scheduler.execute(task);
-        } else {
-            scheduler.schedule(task, delaySeconds, TimeUnit.SECONDS);
-        }
+        if (delaySeconds == 0) scheduler.execute(task);
+        else scheduler.schedule(task, delaySeconds, TimeUnit.SECONDS);
     }
 
     private void scheduleReconnect() {
         reconnectAttempt++;
-        long delay = Math.min((long) Math.pow(2, reconnectAttempt), MAX_BACKOFF_SEC);
-        log.warn("Reconnecting in {}s (attempt {})…", delay, reconnectAttempt);
+        long delay = Math.min((long) Math.pow(2, reconnectAttempt), MAX_BACKOFF);
+        log.warn("Reconnecting in {}s (attempt {})...", delay, reconnectAttempt);
         connect(delay);
     }
 
-    // ── WebSocket.Listener callbacks ───────────────────────────────
-
     @Override
     public void onOpen(WebSocket ws) {
-        log.info("WebSocket opened — sending subscription for {} asset IDs", clobProperties.getAssetIds().size());
+        log.info("WebSocket opened");
         this.socket           = ws;
         this.reconnectAttempt = 0;
-
         sendSubscription(ws);
         ws.request(1);
     }
 
-    /**
-     * Polymarket sends large messages in fragments. We buffer until
-     * last=true then hand the complete JSON to the use case.
-     */
     @Override
     public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
-        messageBuffer.append(data);
+        buffer.append(data);
         if (last) {
-            String message = messageBuffer.toString();
-            messageBuffer.setLength(0);
-            handleMessage(message);
+            String msg = buffer.toString();
+            buffer.setLength(0);
+            try { useCase.handle(msg); }
+            catch (Exception e) { log.error("Error handling message: {}", e.getMessage()); }
         }
         ws.request(1);
         return null;
@@ -145,33 +132,25 @@ public class PolymarketWebSocketClient implements WebSocket.Listener {
         scheduleReconnect();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────
-
     private void sendSubscription(WebSocket ws) {
         try {
-            // Subscription payload per Polymarket docs:
-            // { "assets_ids": [...], "type": "market", "custom_feature_enabled": true }
-            // custom_feature_enabled = true → also receive best_bid_ask,
-            // new_market, market_resolved events
+            List<String> ids = resolveAssetIds();
+            log.info("Subscribing to {} asset IDs: {}", ids.size(), ids);
             Map<String, Object> payload = Map.of(
-                    "assets_ids",              clobProperties.getAssetIds(),
-                    "type",                    "market",
-                    "custom_feature_enabled",  true
-            );
-            String json = mapper.writeValueAsString(payload);
-            ws.sendText(json, true);
-            log.debug("Subscription sent: {}", json);
+                    "assets_ids", ids, "type", "market", "custom_feature_enabled", true);
+            ws.sendText(mapper.writeValueAsString(payload), true);
         } catch (Exception e) {
             log.error("Failed to send subscription: {}", e.getMessage());
         }
     }
 
-    private void handleMessage(String rawJson) {
+    private List<String> resolveAssetIds() {
         try {
-            useCase.handle(rawJson);
+            List<String> dbIds = marketRepository.findAllActiveYesTokenIds();
+            if (!dbIds.isEmpty()) return dbIds;
         } catch (Exception e) {
-            // Never crash the listener — just log and keep receiving
-            log.error("Error handling message: {}", e.getMessage());
+            log.warn("DB asset IDs unavailable, using fallback: {}", e.getMessage());
         }
+        return fallbackAssetIds.getAssetIds();
     }
 }
