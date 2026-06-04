@@ -5,38 +5,35 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
-/**
- * Configures the STOMP WebSocket broker that pushes real-time data
- * to the Next.js frontend.
- *
- * Topics published by Spring:
- *   /topic/trades          → live trade activity (whale alerts, feed)
- *   /topic/market-ticks    → real-time YES% price updates
- *   /topic/signals         → new AI mismatch signals
- *
- * Connection endpoint for the frontend:
- *   ws://localhost:8080/ws  (SockJS fallback also available)
- */
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Simple in-memory broker for /topic destinations
-        registry.enableSimpleBroker("/topic");
-
-        // Prefix for messages FROM client → server (not needed for push-only)
+        registry.enableSimpleBroker("/topic")
+                // Send heartbeat every 10s so SockJS sessions stay alive
+                .setHeartbeatValue(new long[]{10000, 10000});
         registry.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                // Allow Next.js dev server and production origins
-                .setAllowedOriginPatterns("http://localhost:3000", "https://*.synapse.app")
-                // SockJS fallback for environments where raw WebSocket is blocked
-                .withSockJS();
+                .setAllowedOriginPatterns("http://localhost:3000", "https://mikeowino.cloud")
+                .withSockJS()
+                // Increase disconnect delay so slow clients don't get dropped
+                .setDisconnectDelay(30_000)
+                .setHeartbeatTime(25_000);
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration
+                .setMessageSizeLimit(512 * 1024)      // 512KB max message
+                .setSendBufferSizeLimit(1024 * 1024)   // 1MB send buffer
+                .setSendTimeLimit(20_000);             // 20s send timeout
     }
 }
