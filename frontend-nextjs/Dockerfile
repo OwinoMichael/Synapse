@@ -28,6 +28,9 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 # Next.js needs this for basePath to work correctly
 ENV NEXT_TELEMETRY_DISABLED=1
 
+ENV NEXT_DISABLE_SOURCEMAPS=1
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 RUN npm run build
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
