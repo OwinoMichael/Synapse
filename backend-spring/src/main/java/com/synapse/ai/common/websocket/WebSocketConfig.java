@@ -13,9 +13,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic")
-                // Send heartbeat every 10s so SockJS sessions stay alive
-                .setHeartbeatValue(new long[]{10000, 10000});
+        registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
     }
 

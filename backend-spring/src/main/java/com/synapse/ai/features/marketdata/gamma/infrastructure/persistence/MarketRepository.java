@@ -22,7 +22,7 @@ public interface MarketRepository extends JpaRepository<MarketEntity, String> {
     Page<MarketEntity> findByActiveTrue(Pageable pageable);
 
     /** Returns all YES token IDs for active markets — used by CLOB WebSocket subscription */
-    @Query("SELECT SPLIT_PART(m.clobTokenIds, '|', 1) FROM MarketEntity m WHERE m.active = true AND m.enableOrderBook = true")
+    @Query(value = "SELECT SPLIT_PART(clob_token_ids, '|', 1) FROM markets WHERE active = true AND enable_order_book = true AND clob_token_ids IS NOT NULL", nativeQuery = true)
     List<String> findAllActiveYesTokenIds();
 
     boolean existsByConditionId(String conditionId);
