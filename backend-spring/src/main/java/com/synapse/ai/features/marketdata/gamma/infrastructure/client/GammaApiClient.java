@@ -1,15 +1,12 @@
 package com.synapse.ai.features.marketdata.gamma.infrastructure.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -53,9 +50,9 @@ public class GammaApiClient {
      * @return flat list of all qualifying GammaApiResponse objects
      */
     public List<GammaApiResponse> fetchAllActiveMarkets() {
-        List<GammaApiResponse> all = new ArrayList<>();
-        String cursor = null;
-        int page = 0;
+        List<GammaApiResponse> all    = new ArrayList<>();
+        String                 cursor = null;
+        int                    page   = 0;
 
         do {
             String url = buildMarketsUrl(cursor);
@@ -77,22 +74,30 @@ public class GammaApiClient {
                     break;
                 }
 
-                // FIX: Gamma API returns array directly, not wrapped in object
-                List<GammaApiResponse> markets = mapper.readValue(
-                        response.body(),
-                        new TypeReference<List<GammaApiResponse>>() {});
-
-                if (markets != null && !markets.isEmpty()) {
-                    all.addAll(markets);
+                GammaPagedResponse paged;
+                try {
+                    paged = mapper.readValue(response.body(), GammaPagedResponse.class);
+                } catch (Exception parseEx) {
+                    // Gamma sometimes returns a plain array instead of paginated envelope
+                    log.warn("Paginated parse failed, trying plain array: {}", parseEx.getMessage());
+                    List<GammaApiResponse> plain = mapper.readValue(
+                            response.body(),
+                            new TypeReference<List<GammaApiResponse>>() {});
+                    all.addAll(plain);
+                    break; // plain array = no pagination
                 }
 
-                // FIX: Gamma's pagination uses URL parameter "next_cursor"
-                // We need to extract it from the response headers or URL
-                // For now, just do one page or implement cursor from response
-                cursor = null; // Break after first page if no cursor mechanism
+                if (paged.data() != null) {
+                    all.addAll(paged.data());
+                } else if (paged.nextCursor() == null) {
+                    // Empty envelope with no cursor — treat body as done
+                    break;
+                }
+
+                cursor = paged.nextCursor();
                 page++;
 
-                // Rate limiting delay
+                // Respect rate limits — small delay between pages
                 if (cursor != null && !END_CURSOR.equals(cursor)) {
                     Thread.sleep(250);
                 }
