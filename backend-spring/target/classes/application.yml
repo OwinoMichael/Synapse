@@ -20,7 +20,7 @@ spring:
   sql:
     init:
       mode: always              # always run schema.sql on startup
-      schema-locations: classpath:schema.sql
+      schema-locations: classpath:db/schema.sql
 
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
