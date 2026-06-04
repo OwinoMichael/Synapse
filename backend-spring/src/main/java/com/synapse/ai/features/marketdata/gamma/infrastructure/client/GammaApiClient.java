@@ -56,6 +56,12 @@ public class GammaApiClient {
                 HttpResponse<String> response =
                         http.send(request, HttpResponse.BodyHandlers.ofString());
 
+                if (response.statusCode() == 422 || response.statusCode() == 404) {
+                    // 422 = offset beyond available data — pagination complete
+                    log.info("Gamma pagination complete at offset={} (status={})", offset, response.statusCode());
+                    break;
+                }
+
                 if (response.statusCode() != 200) {
                     log.error("Gamma API status={}", response.statusCode());
                     break;
