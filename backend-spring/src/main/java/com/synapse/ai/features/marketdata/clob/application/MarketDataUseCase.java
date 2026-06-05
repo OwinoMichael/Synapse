@@ -47,14 +47,14 @@ public class MarketDataUseCase {
         String eventType = extractEventType(rawJson);
 
         // Temporary: log first tick of each type to confirm data is flowing
-        log.info("Received WebSocket message event_type={} length={}", eventType, rawJson.length());
+        //log.info("Received WebSocket message event_type={} length={}", eventType, rawJson.length());
 
         repository.save(new RawMarketMessageEntity(rawJson, eventType));
 
         List<MarketTickEvent> ticks = normalizer.normalize(rawJson);
         if (ticks.isEmpty()) return;
 
-        log.info("Publishing {} ticks for event_type={}", ticks.size(), eventType);
+        //log.info("Publishing {} ticks for event_type={}", ticks.size(), eventType);
 
         ticks.forEach(tick -> {
             kafkaPublisher.publish(tick);
