@@ -2,6 +2,7 @@ package com.synapse.ai.features.marketdata.trades.infrastructure.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,16 +15,17 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * HTTP client for the Polymarket Data API.
+ * Polls the Polymarket Data API for recent trades.
  *
- * Base URL : https://data-api.polymarket.com
- * Endpoint : GET /trades
- * Auth     : none
- *
- * We poll with a taker_start_ts filter so we only fetch trades
- * newer than our last poll — avoids re-processing old trades.
+ * Correct endpoint per docs:
+ *   GET https://data-api.polymarket.com/trades
+ *   Params:
+ *     conditionIds  — comma-separated list of market conditionIds
+ *     t_start       — Unix timestamp (seconds), only trades after this
+ *     limit         — max records (default 100)
  */
 @Component
 public class TradesApiClient {
@@ -36,23 +38,38 @@ public class TradesApiClient {
     @Value("${polymarket.trades.page-size:100}")
     private int pageSize;
 
-    private final HttpClient   http   = HttpClient.newBuilder()
+    private final HttpClient      http           = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper    mapper         = new ObjectMapper();
+    private final MarketRepository marketRepository;
 
-    /**
-     * Fetch recent trades since the given Unix epoch seconds timestamp.
-     * Returns an empty list on error so the scheduler keeps running.
-     *
-     * @param sinceEpochSeconds  only return trades after this time
-     */
+    public TradesApiClient(MarketRepository marketRepository) {
+        this.marketRepository = marketRepository;
+    }
+
     public List<TradesApiResponse> fetchSince(long sinceEpochSeconds) {
+        // Get active conditionIds from DB — limit to 20 to keep URL manageable
+        List<String> conditionIds = marketRepository
+                .findByActiveAndClosedAndArchived(true, false, false)
+                .stream()
+                .limit(20)
+                .map(m -> m.getConditionId())
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toList());
+
+        if (conditionIds.isEmpty()) {
+            log.warn("No active conditionIds found — skipping trades fetch");
+            return Collections.emptyList();
+        }
+
+        String ids = String.join(",", conditionIds);
         String url = baseUrl + "/trades"
                 + "?limit=" + pageSize
-                + "&taker_start_ts=" + sinceEpochSeconds
-                + "&order=TIMESTAMP"
-                + "&ascending=false";
+                + "&t_start=" + sinceEpochSeconds
+                + "&conditionIds=" + ids;
+
+        log.info("Fetching trades: {} markets, since={}", conditionIds.size(), sinceEpochSeconds);
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -64,17 +81,19 @@ public class TradesApiClient {
             HttpResponse<String> response =
                     http.send(request, HttpResponse.BodyHandlers.ofString());
 
+            log.info("Trades API status={} body_len={}", response.statusCode(), response.body().length());
+
             if (response.statusCode() != 200) {
-                log.error("Trades API status={} body={}", response.statusCode(), response.body());
+                log.error("Trades API error status={} body={}", response.statusCode(),
+                        response.body().substring(0, Math.min(200, response.body().length())));
                 return Collections.emptyList();
             }
 
-            return mapper.readValue(
-                    response.body(),
+            return mapper.readValue(response.body(),
                     new TypeReference<List<TradesApiResponse>>() {});
 
         } catch (Exception e) {
-            log.error("Failed to fetch trades since={}: {}", sinceEpochSeconds, e.getMessage());
+            log.error("Failed to fetch trades: {}", e.getMessage());
             return Collections.emptyList();
         }
     }

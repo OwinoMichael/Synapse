@@ -58,9 +58,10 @@ public class TradesSyncUseCase {
     @Transactional
     public void sync() {
         long since = resolveLastPollEpoch();
-        log.debug("Polling trades since epoch={}", since);
+        log.info("Polling trades since epoch={} ({})", since, Instant.ofEpochSecond(since));
 
         List<TradesApiResponse> raw = client.fetchSince(since);
+        log.info("Trades API returned {} trades", raw.size());
         if (raw.isEmpty()) return;
 
         long newestTimestamp = since;
@@ -93,17 +94,35 @@ public class TradesSyncUseCase {
     // ── Mapping ────────────────────────────────────────────────────
 
     private Trade map(TradesApiResponse dto) {
-        BigDecimal price     = parseBD(dto.price());
-        BigDecimal size      = parseBD(dto.size());
-        BigDecimal usdcValue = price.multiply(size);
+        // Use usdcSize if available, else price * size
+        double priceVal = dto.price() != null ? dto.price() : 0.0;
+        double sizeVal  = dto.size()  != null ? dto.size()  : 0.0;
+        double usdcVal  = dto.usdcSize() != null ? dto.usdcSize() : priceVal * sizeVal;
+
+        BigDecimal price     = BigDecimal.valueOf(priceVal);
+        BigDecimal size      = BigDecimal.valueOf(sizeVal);
+        BigDecimal usdcValue = BigDecimal.valueOf(usdcVal);
         boolean    isWhale   = usdcValue.compareTo(whaleThreshold) >= 0;
-        Instant    timestamp = parseTimestamp(dto.timestamp());
+
+        // Use timestamp directly (already in seconds)
+        Instant timestamp = dto.timestamp() != null
+                ? Instant.ofEpochSecond(dto.timestamp())
+                : Instant.now();
+
+        // Generate a stable ID if none provided
+        String id = dto.id() != null ? dto.id()
+                : dto.market() + "_" + dto.assetId() + "_" + dto.timestamp();
 
         return new Trade(
-                dto.id(), dto.market(), dto.assetId(),
-                dto.side(), price, size, usdcValue,
-                dto.makerAddress(), dto.takerAddress(),
-                timestamp, isWhale
+                id,
+                dto.market(),
+                dto.assetId(),
+                dto.side(),
+                price, size, usdcValue,
+                dto.makerAddress(),
+                null,   // takerAddress not in Data API response
+                timestamp,
+                isWhale
         );
     }
 

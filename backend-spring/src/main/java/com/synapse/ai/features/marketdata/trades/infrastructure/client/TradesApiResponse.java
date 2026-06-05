@@ -4,10 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Jackson DTO for a single trade object from:
- * GET https://data-api.polymarket.com/trades
+ * Jackson DTO matching the Polymarket Data API GET /trades response.
  *
- * Sample response field names from Polymarket Data API docs.
+ * Actual field names from docs:
+ * proxyWallet, side, asset, conditionId, size, price, timestamp, title, outcome
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record TradesApiResponse(
@@ -15,28 +15,33 @@ public record TradesApiResponse(
         @JsonProperty("id")
         String id,
 
-        @JsonProperty("market")
-        String market,          // conditionId
+        @JsonProperty("conditionId")
+        String market,          // conditionId — matches our marketId
 
-        @JsonProperty("asset_id")
-        String assetId,
+        @JsonProperty("asset")
+        String assetId,         // token ID
 
         @JsonProperty("side")
         String side,            // "BUY" | "SELL"
 
         @JsonProperty("price")
-        String price,
+        Double price,
 
         @JsonProperty("size")
-        String size,
+        Double size,            // USDC amount
 
-        @JsonProperty("maker_address")
+        @JsonProperty("usdcSize")
+        Double usdcSize,        // alternative USDC field
+
+        @JsonProperty("proxyWallet")
         String makerAddress,
 
-        @JsonProperty("taker_address")
-        String takerAddress,
-
-        /** Unix timestamp in seconds */
         @JsonProperty("timestamp")
-        String timestamp
+        Long timestamp,         // Unix seconds
+
+        @JsonProperty("title")
+        String title,           // market question — bonus, saves a DB join
+
+        @JsonProperty("outcome")
+        String outcome          // "Yes" | "No"
 ) {}
