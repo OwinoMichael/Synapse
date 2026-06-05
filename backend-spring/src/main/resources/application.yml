@@ -14,7 +14,7 @@ spring:
       ddl-auto: none        # validate in prod — schema.sql owns DDL
     show-sql: false
     properties:
-      hibernate: {}
+#      hibernate: {}
 
   sql:
     init:
