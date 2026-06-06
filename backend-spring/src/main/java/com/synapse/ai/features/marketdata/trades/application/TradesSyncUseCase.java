@@ -94,24 +94,21 @@ public class TradesSyncUseCase {
     // ── Mapping ────────────────────────────────────────────────────
 
     private Trade map(TradesApiResponse dto) {
-        // Use usdcSize if available, else price * size
-        double priceVal = dto.price() != null ? dto.price() : 0.0;
-        double sizeVal  = dto.size()  != null ? dto.size()  : 0.0;
-        double usdcVal  = dto.usdcSize() != null ? dto.usdcSize() : priceVal * sizeVal;
-
-        BigDecimal price     = BigDecimal.valueOf(priceVal);
-        BigDecimal size      = BigDecimal.valueOf(sizeVal);
-        BigDecimal usdcValue = BigDecimal.valueOf(usdcVal);
+        BigDecimal price     = dto.price() != null ? BigDecimal.valueOf(dto.price()) : BigDecimal.ZERO;
+        BigDecimal size      = dto.size()  != null ? BigDecimal.valueOf(dto.size())  : BigDecimal.ZERO;
+        // From the API: size is already the USDC amount
+        BigDecimal usdcValue = size;
         boolean    isWhale   = usdcValue.compareTo(whaleThreshold) >= 0;
-
-        // Use timestamp directly (already in seconds)
-        Instant timestamp = dto.timestamp() != null
+        Instant    timestamp = dto.timestamp() != null
                 ? Instant.ofEpochSecond(dto.timestamp())
                 : Instant.now();
 
-        // Generate a stable ID if none provided
-        String id = dto.id() != null ? dto.id()
-                : dto.market() + "_" + dto.assetId() + "_" + dto.timestamp();
+        // id IS transactionHash — already mapped directly in the record
+        String id = dto.id();
+        if (id == null || id.isBlank()) {
+            log.warn("Trade missing transactionHash — skipping");
+            throw new IllegalArgumentException("Missing transactionHash");
+        }
 
         return new Trade(
                 id,
@@ -120,7 +117,7 @@ public class TradesSyncUseCase {
                 dto.side(),
                 price, size, usdcValue,
                 dto.makerAddress(),
-                null,   // takerAddress not in Data API response
+                null,
                 timestamp,
                 isWhale
         );
