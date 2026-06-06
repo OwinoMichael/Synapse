@@ -12,14 +12,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record TradesApiResponse(
 
-        @JsonProperty("id")
-        String id,
+        @JsonProperty("transactionHash")
+        String id,              // transactionHash IS the unique ID
 
         @JsonProperty("conditionId")
-        String market,          // conditionId — matches our marketId
+        String market,
 
         @JsonProperty("asset")
-        String assetId,         // token ID
+        String assetId,
 
         @JsonProperty("side")
         String side,            // "BUY" | "SELL"
@@ -28,10 +28,7 @@ public record TradesApiResponse(
         Double price,
 
         @JsonProperty("size")
-        Double size,            // USDC amount
-
-        @JsonProperty("usdcSize")
-        Double usdcSize,        // alternative USDC field
+        Double size,            // USDC amount (numeric, not string)
 
         @JsonProperty("proxyWallet")
         String makerAddress,
@@ -40,8 +37,8 @@ public record TradesApiResponse(
         Long timestamp,         // Unix seconds
 
         @JsonProperty("title")
-        String title,           // market question — bonus, saves a DB join
+        String title,
 
         @JsonProperty("outcome")
-        String outcome          // "Yes" | "No"
+        String outcome
 ) {}
