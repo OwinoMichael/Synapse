@@ -1,7 +1,6 @@
 /**
- * Synapse API client
- * Centralises all calls to the Spring backend REST API.
- * Base URL comes from env so it works in both local and prod.
+ * Synapse API client with SWR for client-side caching.
+ * Data is cached in memory — switching pages and back is instant.
  */
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api'
@@ -14,7 +13,7 @@ export interface ApiMarket {
   question:      string
   category:      string
   tags:          string[]
-  yesPrice:      number        // 0.00 – 1.00
+  yesPrice:      number
   noPrice:       number
   volume:        number
   volume24h:     number
@@ -24,44 +23,38 @@ export interface ApiMarket {
   closed:        boolean
 }
 
-export interface ApiMarketDetail extends ApiMarket {
-  description:   string
-  eventTitle:    string
-  clobTokenIds:  string[]      // [yesToken, noToken]
-}
-
 export interface ApiStats {
-  totalMarkets:   number
-  activeSignals:  number
-  avgMismatch:    number
+  totalMarkets:    number
+  activeSignals:   number
+  avgMismatch:     number
   volatilityLevel: 'LOW' | 'MEDIUM' | 'HIGH'
   volatilitySpikes: number
 }
 
 export interface ApiSignal {
-  id:            number
-  marketId:      string
-  marketQuestion:string
-  category:      string
-  marketOdds:    number
-  aiEstimate:    number
-  gap:           number
-  confidence:    'HIGH' | 'MONITOR' | 'NORMAL'
-  summary:       string
-  keywords:      string[]
-  createdAt:     string
+  id:             number
+  marketId:       string
+  marketQuestion: string
+  category:       string
+  marketOdds:     number
+  aiEstimate:     number
+  gap:            number
+  confidence:     'HIGH' | 'MONITOR' | 'NORMAL'
+  summary:        string
+  keywords:       string[]
+  createdAt:      string
 }
 
 export interface ApiTrade {
-  id:            string
-  marketId:      string
-  marketQuestion:string
-  category:      string
-  side:          string
-  price:         number
-  usdcValue:     number
-  isWhale:       boolean
-  timestamp:     string
+  id:             string
+  marketId:       string
+  marketQuestion: string
+  category:       string
+  side:           string
+  price:          number
+  usdcValue:      number
+  isWhale:        boolean
+  timestamp:      string
 }
 
 export interface ApiOrderBook {
@@ -85,63 +78,51 @@ export interface ApiPriceHistory {
 
 // ── Fetch helper ───────────────────────────────────────────────────
 
-async function get<T>(path: string): Promise<T> {
+export async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    next: { revalidate: 30 },   // ISR — revalidate every 30s
+    // No Next.js ISR cache — SWR handles client-side caching
+    cache: 'no-store',
   })
   if (!res.ok) throw new Error(`API error ${res.status} on ${path}`)
   return res.json()
 }
 
-// ── API calls ──────────────────────────────────────────────────────
+// ── SWR fetcher — use this as the fetcher argument ─────────────────
+export const swrFetcher = (url: string) =>
+  fetch(url).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
 
-/** Dashboard stats bar */
-export const fetchStats = () =>
-  get<ApiStats>('/stats')
-
-/** Trending markets for carousel (top 8 by volume) */
-export const fetchTrendingMarkets = () =>
-  get<ApiMarket[]>('/markets?sort=volume&limit=8&active=true')
-
-/** All markets with optional filters */
-export const fetchMarkets = (params?: {
-  category?: string
-  active?: boolean
-  limit?: number
-  sort?: string
-}) => {
-  const q = new URLSearchParams()
-  if (params?.category && params.category !== 'All') q.set('category', params.category)
-  if (params?.active !== undefined) q.set('active', String(params.active))
-  if (params?.limit)  q.set('limit',  String(params.limit))
-  if (params?.sort)   q.set('sort',   params.sort)
-  return get<ApiMarket[]>(`/markets${q.size ? '?' + q : ''}`)
+// ── URL builders — used as SWR keys ───────────────────────────────
+export const urls = {
+  stats:      () => `${BASE}/stats`,
+  heatmap:    () => `${BASE}/stats/heatmap`,
+  trending:   () => `${BASE}/markets/trending`,
+  markets:    (category?: string, sort = 'volume', limit = 100) => {
+    const q = new URLSearchParams({ sort, limit: String(limit), active: 'true' })
+    if (category && category !== 'All') q.set('category', category)
+    return `${BASE}/markets?${q}`
+  },
+  market:     (id: string) => `${BASE}/markets/${id}`,
+  orderBook:  (id: string) => `${BASE}/markets/${id}/orderbook`,
+  history:    (id: string, range: string) => `${BASE}/markets/${id}/history?range=${range}`,
+  signals:    () => `${BASE}/signals?active=true`,
+  trades:     (limit = 20) => `${BASE}/trades/recent?limit=${limit}`,
+  whales:     (limit = 10) => `${BASE}/trades/whales?limit=${limit}`,
 }
 
-/** Single market detail */
-export const fetchMarket = (conditionId: string) =>
-  get<ApiMarketDetail>(`/markets/${conditionId}`)
-
-/** Order book for a specific market */
-export const fetchOrderBook = (conditionId: string) =>
-  get<ApiOrderBook>(`/markets/${conditionId}/orderbook`)
-
-/** Price history for chart (1H, 6H, 1D, 1W) */
-export const fetchPriceHistory = (conditionId: string, range: '1H'|'6H'|'1D'|'1W') =>
-  get<ApiPriceHistory>(`/markets/${conditionId}/history?range=${range}`)
-
-/** Active AI signals */
-export const fetchSignals = () =>
-  get<ApiSignal[]>('/signals?active=true')
-
-/** Recent trades — activity feed */
-export const fetchRecentTrades = (limit = 20) =>
-  get<ApiTrade[]>(`/trades/recent?limit=${limit}`)
-
-/** Whale trades only */
-export const fetchWhaleTrades = (limit = 10) =>
-  get<ApiTrade[]>(`/trades/whales?limit=${limit}`)
-
-/** Heatmap data by category */
-export const fetchHeatmap = () =>
-  get<ApiHeatmap[]>('/stats/heatmap')
+// ── Direct fetch functions (used server-side or without SWR) ───────
+export const fetchStats           = () => get<ApiStats>(urls.stats().replace(BASE, ''))
+export const fetchTrendingMarkets = () => get<ApiMarket[]>('/markets/trending')
+export const fetchMarkets         = (params?: { category?: string; limit?: number; sort?: string }) => {
+  const q = new URLSearchParams()
+  if (params?.category && params.category !== 'All') q.set('category', params.category)
+  if (params?.limit)  q.set('limit',  String(params.limit))
+  if (params?.sort)   q.set('sort',   params.sort)
+  q.set('active', 'true')
+  return get<ApiMarket[]>(`/markets?${q}`)
+}
+export const fetchMarket          = (id: string)               => get<ApiMarket>(`/markets/${id}`)
+export const fetchOrderBook       = (id: string)               => get<ApiOrderBook>(`/markets/${id}/orderbook`)
+export const fetchPriceHistory    = (id: string, range: string)=> get<ApiPriceHistory>(`/markets/${id}/history?range=${range}`)
+export const fetchSignals         = ()                         => get<ApiSignal[]>('/signals?active=true')
+export const fetchRecentTrades    = (limit = 20)               => get<ApiTrade[]>(`/trades/recent?limit=${limit}`)
+export const fetchHeatmap         = ()                         => get<ApiHeatmap[]>('/stats/heatmap')
