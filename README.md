@@ -25,7 +25,7 @@ Polymarket CLOB WSS
  Spring Boot (Ingestion)
         │
         ▼
-    RabbitMQ
+      Kafka
    ┌────┴────┐
    ▼         ▼
 Spring AI   Database
@@ -42,7 +42,7 @@ Next.js Dashboard (STOMP/SockJS)
 | Layer       | Technologies                                         |
 |-------------|------------------------------------------------------|
 | Backend     | Spring Boot 3.x, Spring AMQP, Spring AI              |
-| Streaming   | RabbitMQ (Message Broker)                            |
+| Streaming   | Kafka (Message Broker)                            |
 | AI / ML     | Spring AI, GPT-4o / Claude, Valyu / Serper (scraping)|
 | Frontend    | Next.js, Tailwind CSS, Recharts, Lightweight Charts  |
 | Data Source | Polymarket Gamma API, CLOB WebSocket (WSS)           |
@@ -51,7 +51,7 @@ Next.js Dashboard (STOMP/SockJS)
 
 ## Key Engineering Highlights
 
-- **Event-Driven Architecture** — RabbitMQ decouples ingestion from processing, ensuring zero message loss during high-volatility events
+- **Event-Driven Architecture** — Kafka decouples ingestion from processing, ensuring zero message loss during high-volatility events
 - **Agentic AI System** — not just an API call; a reactive agent that decides *when* and *what* to analyze based on live market conditions
 - **Full-Stack Data Pipeline** — raw blockchain/WebSocket data flows through to a polished, real-time UI with no polling
 
