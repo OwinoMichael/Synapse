@@ -112,7 +112,7 @@ export const urls = {
 // ── Direct fetch functions (used server-side or without SWR) ───────
 export const fetchStats           = () => get<ApiStats>(urls.stats().replace(BASE, ''))
 export const fetchTrendingMarkets = () => get<ApiMarket[]>('/markets/trending')
-export const fetchMarkets         = (params?: { category?: string; limit?: number; sort?: string }) => {
+export const fetchMarkets         = (params?: { category?: string; limit?: number; sort?: string, active?: boolean;}) => {
   const q = new URLSearchParams()
   if (params?.category && params.category !== 'All') q.set('category', params.category)
   if (params?.limit)  q.set('limit',  String(params.limit))
