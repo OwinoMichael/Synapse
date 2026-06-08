@@ -7,6 +7,11 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASS:postgres}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
 
   jpa:
     open-in-view: false
@@ -20,6 +25,16 @@ spring:
     init:
       mode: always              # always run schema.sql on startup
       schema-locations: classpath:db/schema.sql
+
+  # Lazy bean initialization — skip beans not needed at startup
+  main:
+    lazy-initialization: true
+
+  # Spring cache — in-memory for now, swap for Redis later
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=30s
 
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
