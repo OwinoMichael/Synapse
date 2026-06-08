@@ -2,6 +2,7 @@ package com.synapse.ai.features.marketdata.gamma.infrastructure.api;
 
 import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketEntity;
 import com.synapse.ai.features.marketdata.gamma.infrastructure.persistence.MarketRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +22,8 @@ public class MarketController {
         this.repository = repository;
     }
 
-    /**
-     * GET /api/markets
-     * Params: category, active, limit, sort (volume|yesPrice|liquidity)
-     */
     @GetMapping
+    @Cacheable(value = "markets", key = "#category + '_' + #active + '_' + #limit + '_' + #sort")
     public List<MarketResponse> getMarkets(
             @RequestParam(required = false) String category,
             @RequestParam(required = false, defaultValue = "true") boolean active,
@@ -33,10 +31,10 @@ public class MarketController {
             @RequestParam(required = false, defaultValue = "volume") String sort
     ) {
         String sortField = switch (sort) {
-            case "yesPrice"   -> "yesPrice";
-            case "liquidity"  -> "liquidity";
-            case "volume24h"  -> "volume24h";
-            default           -> "volume";
+            case "yesPrice"  -> "yesPrice";
+            case "liquidity" -> "liquidity";
+            case "volume24h" -> "volume24h";
+            default          -> "volume";
         };
 
         PageRequest page = PageRequest.of(0, Math.min(limit, 200),
@@ -49,7 +47,14 @@ public class MarketController {
         return entities.stream().map(MarketResponse::from).toList();
     }
 
-    /** GET /api/markets/{conditionId} */
+    @GetMapping("/trending")
+    @Cacheable("trending")
+    public List<MarketResponse> getTrending() {
+        PageRequest page = PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "volume24h"));
+        return repository.findByActiveTrue(page).getContent()
+                .stream().map(MarketResponse::from).toList();
+    }
+
     @GetMapping("/{conditionId}")
     public MarketResponse getMarket(@PathVariable String conditionId) {
         return repository.findByConditionId(conditionId)
@@ -57,10 +62,8 @@ public class MarketController {
                 .orElseThrow(() -> new RuntimeException("Market not found: " + conditionId));
     }
 
-    /** GET /api/markets/{conditionId}/orderbook — stub until CLOB aggregation is built */
     @GetMapping("/{conditionId}/orderbook")
     public Map<String, Object> getOrderBook(@PathVariable String conditionId) {
-        // TODO: aggregate from raw_market_messages or maintain live book in memory
         return Map.of(
                 "marketId", conditionId,
                 "bids", List.of(
@@ -80,17 +83,14 @@ public class MarketController {
         );
     }
 
-    /** GET /api/markets/{conditionId}/history?range=1D — stub until price history is aggregated */
     @GetMapping("/{conditionId}/history")
     public Map<String, Object> getPriceHistory(
             @PathVariable String conditionId,
             @RequestParam(defaultValue = "1D") String range
     ) {
-        // TODO: aggregate from raw_market_messages keyed by time bucket
         MarketEntity market = repository.findByConditionId(conditionId).orElse(null);
         double basePrice = market != null && market.getYesPrice() != null
-                ? market.getYesPrice().doubleValue() * 100
-                : 50.0;
+                ? market.getYesPrice().doubleValue() * 100 : 50.0;
 
         List<String> labels = switch (range) {
             case "1H" -> Arrays.asList("12:00","12:10","12:20","12:30","12:40","12:50","13:00");
@@ -99,7 +99,6 @@ public class MarketController {
             default   -> Arrays.asList("09:00","10:00","11:00","12:00","13:00","14:00","15:00");
         };
 
-        // Generate synthetic history around the real current price
         List<Double> prices = new java.util.ArrayList<>();
         double p = basePrice - 8;
         for (int i = 0; i < labels.size(); i++) {
@@ -107,37 +106,22 @@ public class MarketController {
             p = Math.max(1, Math.min(99, p));
             prices.add(Math.round(p * 100.0) / 100.0);
         }
-        // Last point = actual current price
         prices.set(prices.size() - 1, Math.round(basePrice * 100.0) / 100.0);
-
         return Map.of("marketId", conditionId, "labels", labels, "prices", prices);
     }
 
-    // ── Response DTO ───────────────────────────────────────────────
-
     public record MarketResponse(
-            String  id,
-            String  conditionId,
-            String  question,
-            String  category,
-            List<String> tags,
-            double  yesPrice,
-            double  noPrice,
-            double  volume,
-            double  volume24h,
-            double  liquidity,
-            String  endDate,
-            boolean active,
-            boolean closed
+            String id, String conditionId, String question,
+            String category, List<String> tags,
+            double yesPrice, double noPrice,
+            double volume, double volume24h, double liquidity,
+            String endDate, boolean active, boolean closed
     ) {
         public static MarketResponse from(MarketEntity e) {
             List<String> tags = (e.getTags() != null && !e.getTags().isBlank())
-                    ? Arrays.asList(e.getTags().split("\\|"))
-                    : List.of();
+                    ? Arrays.asList(e.getTags().split("\\|")) : List.of();
             return new MarketResponse(
-                    e.getId(),
-                    e.getConditionId(),
-                    e.getQuestion(),
+                    e.getId(), e.getConditionId(), e.getQuestion(),
                     e.getCategory() != null ? e.getCategory() : "Other",
                     tags,
                     e.getYesPrice()  != null ? e.getYesPrice().doubleValue()  : 0.5,
@@ -146,8 +130,7 @@ public class MarketController {
                     e.getVolume24h() != null ? e.getVolume24h().doubleValue() : 0,
                     e.getLiquidity() != null ? e.getLiquidity().doubleValue() : 0,
                     e.getEndDate()   != null ? e.getEndDate().toString()      : null,
-                    e.isActive(),
-                    e.isClosed()
+                    e.isActive(), e.isClosed()
             );
         }
     }
