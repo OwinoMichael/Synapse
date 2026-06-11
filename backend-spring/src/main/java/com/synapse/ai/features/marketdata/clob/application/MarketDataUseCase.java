@@ -10,14 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-
-
-
-/**
- * Normalise → publish to Kafka → push to STOMP.
- * Raw message persistence removed — it fills disk in prod.
- * Re-enable for local debugging only.
- */
 @Service
 public class MarketDataUseCase {
 
@@ -38,22 +30,11 @@ public class MarketDataUseCase {
     }
 
     public void handle(String rawJson) {
-        String eventType = extractEventType(rawJson);
-
         List<MarketTickEvent> ticks = normalizer.normalize(rawJson);
         if (ticks.isEmpty()) return;
-
         ticks.forEach(tick -> {
             kafkaPublisher.publish(tick);
             stompPublisher.publishTick(tick);
         });
-    }
-
-    private String extractEventType(String rawJson) {
-        try {
-            return mapper.readTree(rawJson).path("event_type").asText("unknown");
-        } catch (Exception e) {
-            return "unknown";
-        }
     }
 }
