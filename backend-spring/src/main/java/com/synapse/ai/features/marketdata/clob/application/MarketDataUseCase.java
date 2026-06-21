@@ -10,6 +10,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * Zero disk writes. Ticks flow: WebSocket -> normalize -> in-memory cache + STOMP push.
+ * Kafka publishing DISABLED temporarily to save disk (Kafka logs eat space fast).
+ * We Re-enable kafkaPublisher once on a bigger VPS for the signals feature.
+ */
+
 @Service
 public class MarketDataUseCase {
 
@@ -19,21 +25,24 @@ public class MarketDataUseCase {
     private final MarketDataKafkaPublisher kafkaPublisher;
     private final LiveFeedPublisher        stompPublisher;
     private final ObjectMapper             mapper = new ObjectMapper();
+    private final InMemoryTickCache    cache;
 
     public MarketDataUseCase(
             MarketDataNormalizer     normalizer,
             MarketDataKafkaPublisher kafkaPublisher,
-            LiveFeedPublisher        stompPublisher) {
+            LiveFeedPublisher        stompPublisher, InMemoryTickCache cache) {
         this.normalizer     = normalizer;
         this.kafkaPublisher = kafkaPublisher;
         this.stompPublisher = stompPublisher;
+        this.cache = cache;
     }
 
     public void handle(String rawJson) {
         List<MarketTickEvent> ticks = normalizer.normalize(rawJson);
         if (ticks.isEmpty()) return;
         ticks.forEach(tick -> {
-            kafkaPublisher.publish(tick);
+            cache.update(tick);              // in-memory only, no disk
+//            kafkaPublisher.publish(tick);  // Disabled due to storage space
             stompPublisher.publishTick(tick);
         });
     }
