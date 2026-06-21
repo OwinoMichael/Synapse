@@ -1,363 +1,406 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import useSWR from 'swr'
-import { Navbar }      from './components/dashboard/Navbar'
-import { Ticker }      from './components/ui/Ticker'
-import { StatCard }    from './components/ui/StatCard'
-import { InsightFeed } from './components/dashboard/InsightFeed'
-import type { Insight } from './components/dashboard/InsightFeed'
-import { useLiveFeed } from './hooks/useLiveFeed'
-import { swrFetcher, urls, type ApiMarket, type ApiStats, type ApiHeatmap, type ApiSignal, type ApiOrderBook } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import './landing.css'
 
-// ── Sparkline ────────────────────────────────────────────────────────
-function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
-  const w = 80, h = 32
-  const min = Math.min(...data), max = Math.max(...data), range = max - min || 1
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ')
-  const color = positive ? '#F1FF58' : '#FF3A6E'
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
-        strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-// ── Carousel ─────────────────────────────────────────────────────────
-function MarketCarousel({ markets }: { markets: ApiMarket[] }) {
-  const [active, setActive] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    if (paused || markets.length === 0) return
-    timerRef.current = setInterval(() => setActive(a => (a + 1) % markets.length), 3200)
-    return () => clearInterval(timerRef.current!)
-  }, [paused, markets.length])
-
-  if (markets.length === 0) return (
-    <div className="carousel-wrap" style={{ minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ color: '#7FA8A8', fontSize: 13 }}>Loading markets…</span>
-    </div>
-  )
-
-  const visible = [0, 1, 2, 3].map(i => markets[(active + i) % markets.length])
-
-  return (
-    <div className="carousel-wrap"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <div className="carousel-header">
-        <span className="section-label">🔥 TRENDING MARKETS</span>
-        <div className="carousel-dots">
-          {markets.map((_, i) => (
-            <button key={i} className={`carousel-dot${i === active ? ' active' : ''}`}
-              onClick={() => setActive(i)} />
-          ))}
-        </div>
-      </div>
-      <div className="carousel-track">
-        {visible.map((m, i) => {
-          const yes = Math.round(m.yesPrice * 100)
-          const pos = m.yesPrice >= 0.5
-          const spark = Array.from({ length: 11 }, (_, j) =>
-            Math.max(0, Math.min(100, yes + Math.sin(j * 1.2 + i) * 3)))
-          return (
-            <div key={m.id + i} className="carousel-card glass">
-              <div className="carousel-card-top">
-                <span className="carousel-cat">{m.category}</span>
-                <span className="carousel-vol">${(m.volume24h / 1000).toFixed(0)}K</span>
-              </div>
-              <p className="carousel-question">{m.question}</p>
-              <div className="carousel-bottom">
-                <div className="carousel-prob">
-                  <span className="carousel-yes">{yes}%</span>
-                  <span className="carousel-change" style={{ color: pos ? '#F1FF58' : '#FF3A6E' }}>
-                    {pos ? '▲' : '▼'} YES
-                  </span>
-                </div>
-                <Sparkline data={spark} positive={pos} />
-              </div>
-              <div className="carousel-bar">
-                <div className="carousel-bar-fill" style={{ width: `${yes}%` }} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Live Feed ─────────────────────────────────────────────────────────
-const FEED_ICONS: Record<string, string> = { whale: '🐋', spike: '⚡', resolved: '✅', new: '🆕', trade: '💱', signal: '🧠' }
-const FEED_COLORS: Record<string, string> = { whale: '#F1FF58', spike: '#FF3A6E', resolved: '#C084FC', new: '#F5A623', trade: '#9ECECE', signal: '#FF3A6E' }
-
-function LiveFeed() {
-  const { messages, connected } = useLiveFeed({ maxItems: 8 })
-  return (
-    <div className="glass livefeed-wrap">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <span className="section-label" style={{ marginBottom: 0 }}>⚡ LIVE ACTIVITY</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span className={`signal-dot${connected ? ' live' : ''}`}
-            style={{ background: connected ? '#F1FF58' : '#416858' }} />
-          <span style={{ fontSize: 10, color: '#7FA8A8' }}>{connected ? 'Live' : 'Connecting…'}</span>
-        </div>
-      </div>
-      <div className="livefeed-list">
-        {messages.length === 0 && (
-          <div style={{ padding: '12px 0', fontSize: 12, color: '#7FA8A8', textAlign: 'center' }}>
-            Waiting for live trades…
-          </div>
-        )}
-        {messages.map((item, i) => (
-          <div key={item.marketId + item.timestamp + i} className={`livefeed-item${i === 0 ? ' fresh' : ''}`}>
-            <span className="livefeed-icon">{FEED_ICONS[item.type] ?? '📊'}</span>
-            <div className="livefeed-body">
-              <p className="livefeed-text">{item.text}</p>
-              <div className="livefeed-meta">
-                <span className="livefeed-cat" style={{ color: FEED_COLORS[item.type] ?? '#9ECECE' }}>
-                  {item.category}
-                </span>
-                <span className="livefeed-time">
-                  {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Order Book ────────────────────────────────────────────────────────
-function OrderBook({ data }: { data: ApiOrderBook | null }) {
-  if (!data) return (
-    <div className="glass orderbook-wrap" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <span style={{ color:'#7FA8A8', fontSize:12 }}>Loading order book…</span>
-    </div>
-  )
-  const maxTotal = Math.max(...data.asks.map(a => a.total), ...data.bids.map(b => b.total))
-  return (
-    <div className="glass orderbook-wrap">
-      <span className="section-label">📖 ORDER BOOK</span>
-      <div className="orderbook-header"><span>PRICE</span><span>SIZE</span><span>TOTAL</span></div>
-      <div className="orderbook-asks">
-        {[...data.asks].reverse().map((a, i) => (
-          <div key={i} className="orderbook-row ask">
-            <div className="orderbook-depth ask-depth" style={{ width:`${(a.total/maxTotal)*100}%` }} />
-            <span className="orderbook-price ask-price">{a.price.toFixed(2)}</span>
-            <span className="orderbook-size">{a.size.toLocaleString()}</span>
-            <span className="orderbook-total">{a.total.toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-      <div className="orderbook-spread">
-        <span>SPREAD</span>
-        <span style={{ color:'#F1FF58' }}>
-          {(data.asks[0]?.price - data.bids[0]?.price).toFixed(3)}
-        </span>
-      </div>
-      <div className="orderbook-bids">
-        {data.bids.map((b, i) => (
-          <div key={i} className="orderbook-row bid">
-            <div className="orderbook-depth bid-depth" style={{ width:`${(b.total/maxTotal)*100}%` }} />
-            <span className="orderbook-price bid-price">{b.price.toFixed(2)}</span>
-            <span className="orderbook-size">{b.size.toLocaleString()}</span>
-            <span className="orderbook-total">{b.total.toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Heatmap ───────────────────────────────────────────────────────────
-function Heatmap({ data }: { data: ApiHeatmap[] }) {
-  const maxVol = Math.max(...data.map(h => h.volume), 1)
-  return (
-    <div className="glass heatmap-wrap">
-      <span className="section-label">🌡 VOLATILITY BY CATEGORY</span>
-      <div className="heatmap-grid">
-        {data.map(h => {
-          const intensity = h.volume / maxVol
-          const pos = h.change >= 0
-          return (
-            <div key={h.category} className="heatmap-cell" style={{
-              background: pos ? `rgba(241,255,88,${0.04 + intensity * 0.18})` : `rgba(255,58,110,${0.04 + intensity * 0.18})`,
-              borderColor: pos ? `rgba(241,255,88,${0.1 + intensity * 0.3})` : `rgba(255,58,110,${0.1 + intensity * 0.3})`,
-            }}>
-              <span className="heatmap-cat">{h.category}</span>
-              <span className="heatmap-vol">${h.volume.toFixed(1)}M</span>
-              <span className="heatmap-change" style={{ color: pos ? '#F1FF58' : '#FF3A6E' }}>
-                {pos ? '+' : ''}{h.change.toFixed(1)}%
-              </span>
-              <span className="heatmap-markets">{h.markets} mkts</span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Main Chart ────────────────────────────────────────────────────────
-function MainChart({ markets }: { markets: ApiMarket[] }) {
+/* ── Synapse Network — signature hero animation ─────────────────── */
+function SynapseNetwork() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const chartRef  = useRef<unknown>(null)
-  const [range, setRange]           = useState<'1H'|'6H'|'1D'|'1W'>('1D')
-  const [selectedId, setSelectedId] = useState<string>('')
 
   useEffect(() => {
-    if (markets.length > 0 && !selectedId) setSelectedId(markets[0].conditionId)
-  }, [markets])
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-  const { data: history } = useSWR(
-    selectedId ? urls.history(selectedId, range) : null,
-    swrFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  )
+    let raf: number
+    let w = 0, h = 0, dpr = 1
 
-  useEffect(() => {
-    if (!history || !canvasRef.current) return
-    import('chart.js/auto').then(mod => {
-      const Chart = mod.default
-      if (chartRef.current) (chartRef.current as { destroy: () => void }).destroy()
-      chartRef.current = new Chart(canvasRef.current!, {
-        type: 'line',
-        data: {
-          labels: history.labels,
-          datasets: [{
-            label: 'Market', data: history.prices,
-            borderColor: '#F1FF58', borderWidth: 2.5,
-            pointRadius: 0, tension: 0.4, fill: true,
-            backgroundColor: 'rgba(241,255,88,0.08)',
-          }],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: {
-            backgroundColor: '#0A3D3E', titleColor: '#9ECECE', bodyColor: '#F1FF58',
-            borderColor: '#416858', borderWidth: 0.5, padding: 10,
-          }},
-          scales: {
-            x: { grid: { color: 'rgba(65,104,88,0.15)' }, ticks: { color: '#7FA8A8', font: { size: 10 } }, border: { display: false } },
-            y: { grid: { color: 'rgba(65,104,88,0.15)' }, ticks: { color: '#7FA8A8', font: { size: 10 }, callback: (v) => `${v}%` }, border: { display: false } },
-          },
-        },
+    interface Node { x: number; y: number; vx: number; vy: number; r: number; pulse: number; pulsing: boolean }
+    let nodes: Node[] = []
+    const NODE_COUNT = 22
+
+    function resize() {
+      const rect = canvas!.getBoundingClientRect()
+      dpr = Math.min(window.devicePixelRatio || 1, 2)
+      w = rect.width
+      h = rect.height
+      canvas!.width = w * dpr
+      canvas!.height = h * dpr
+      ctx!.scale(dpr, dpr)
+    }
+
+    function initNodes() {
+      nodes = Array.from({ length: NODE_COUNT }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: (Math.random() - 0.5) * 0.18,
+        r: Math.random() * 1.8 + 1.4,
+        pulse: 0,
+        pulsing: false,
+      }))
+    }
+
+    resize()
+    initNodes()
+
+    const handleResize = () => { resize(); initNodes() }
+    window.addEventListener('resize', handleResize)
+
+    // Randomly trigger a "signal fire" on a node
+    const fireInterval = setInterval(() => {
+      if (nodes.length === 0) return
+      const n = nodes[Math.floor(Math.random() * nodes.length)]
+      n.pulsing = true
+      n.pulse = 0
+    }, 1400)
+
+    function draw() {
+      ctx!.clearRect(0, 0, w, h)
+
+      // Update positions
+      nodes.forEach(n => {
+        n.x += n.vx
+        n.y += n.vy
+        if (n.x < 0 || n.x > w) n.vx *= -1
+        if (n.y < 0 || n.y > h) n.vy *= -1
+        if (n.pulsing) {
+          n.pulse += 0.025
+          if (n.pulse >= 1) { n.pulsing = false; n.pulse = 0 }
+        }
       })
-    })
-    return () => { if (chartRef.current) (chartRef.current as { destroy: () => void }).destroy() }
-  }, [history])
 
-  const selected = markets.find(m => m.conditionId === selectedId)
+      // Draw connections
+      const maxDist = Math.min(w, h) * 0.28
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j]
+          const dx = a.x - b.x, dy = a.y - b.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < maxDist) {
+            const opacity = (1 - dist / maxDist) * 0.22
+            const firing = a.pulsing || b.pulsing
+            ctx!.strokeStyle = firing
+              ? `rgba(241, 255, 88, ${opacity + 0.25})`
+              : `rgba(192, 132, 252, ${opacity})`
+            ctx!.lineWidth = firing ? 1.1 : 0.6
+            ctx!.beginPath()
+            ctx!.moveTo(a.x, a.y)
+            ctx!.lineTo(b.x, b.y)
+            ctx!.stroke()
+          }
+        }
+      }
+
+      // Draw nodes
+      nodes.forEach(n => {
+        ctx!.beginPath()
+        ctx!.arc(n.x, n.y, n.r, 0, Math.PI * 2)
+        ctx!.fillStyle = 'rgba(192, 132, 252, 0.55)'
+        ctx!.fill()
+
+        if (n.pulsing) {
+          const ringR = n.r + n.pulse * 26
+          const ringOpacity = (1 - n.pulse) * 0.7
+          ctx!.beginPath()
+          ctx!.arc(n.x, n.y, ringR, 0, Math.PI * 2)
+          ctx!.strokeStyle = `rgba(241, 255, 88, ${ringOpacity})`
+          ctx!.lineWidth = 1.5
+          ctx!.stroke()
+
+          ctx!.beginPath()
+          ctx!.arc(n.x, n.y, n.r + 1.5, 0, Math.PI * 2)
+          ctx!.fillStyle = 'rgba(241, 255, 88, 0.9)'
+          ctx!.fill()
+        }
+      })
+
+      raf = requestAnimationFrame(draw)
+    }
+
+    draw()
+
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(fireInterval)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  return <canvas ref={canvasRef} className="synapse-network-canvas" />
+}
+
+/* ── Count-up number ──────────────────────────────────────────────── */
+function CountUp({ end, decimals = 0, suffix = '', duration = 1800 }: { end: number; decimals?: number; suffix?: string; duration?: number }) {
+  const [val, setVal] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  const [started, setStarted] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started) {
+        setStarted(true)
+        const startTime = performance.now()
+        function tick(now: number) {
+          const progress = Math.min((now - startTime) / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setVal(end * eased)
+          if (progress < 1) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }
+    }, { threshold: 0.4 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [end, duration, started])
+
+  return <span ref={ref}>{val.toFixed(decimals)}{suffix}</span>
+}
+
+/* ── Scroll reveal wrapper ────────────────────────────────────────── */
+function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setVisible(true)
+    }, { threshold: 0.15 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   return (
-    <div className="glass main-chart-wrap">
-      <div className="main-chart-header">
-        <div>
-          <span className="section-label" style={{ marginBottom: 4 }}>PRICE CHART</span>
-          <select style={{
-            background: 'rgba(10,61,62,0.7)', border: '0.5px solid rgba(65,104,88,0.5)',
-            borderRadius: 6, padding: '5px 10px', fontSize: 11, color: '#E8F5F5',
-            outline: 'none', marginTop: 4, maxWidth: 260,
-          }} value={selectedId} onChange={e => setSelectedId(e.target.value)}>
-            {markets.map(m => (
-              <option key={m.conditionId} value={m.conditionId}>
-                {m.question.length > 45 ? m.question.slice(0, 42) + '…' : m.question}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="chart-range-tabs">
-          {(['1H','6H','1D','1W'] as const).map(r => (
-            <button key={r} className={`range-tab${range === r ? ' active' : ''}`} onClick={() => setRange(r)}>{r}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{ position: 'relative', height: 180, width: '100%', minWidth: 0 }}>
-        {!history && <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#7FA8A8', fontSize:12 }}>Loading chart…</div>}
-        <canvas ref={canvasRef} />
-      </div>
-      {selected && (
-        <div style={{ display:'flex', gap:16, fontSize:11, color:'#7FA8A8' }}>
-          <span>YES <span style={{ color:'#F1FF58', fontWeight:700 }}>{Math.round(selected.yesPrice * 100)}%</span></span>
-          <span>Vol <span style={{ color:'#9ECECE' }}>${(selected.volume / 1e6).toFixed(2)}M</span></span>
-          <span>Liq <span style={{ color:'#9ECECE' }}>${(selected.liquidity / 1000).toFixed(0)}K</span></span>
-        </div>
-      )}
+    <div ref={ref} className={`reveal${visible ? ' visible' : ''}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
     </div>
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────
-export default function DashboardPage() {
-  // SWR fetches — cached in memory, instant on page revisit
-  const { data: stats }   = useSWR<ApiStats>    (urls.stats(),    swrFetcher, { refreshInterval: 30000 })
-  const { data: markets } = useSWR<ApiMarket[]> (urls.trending(), swrFetcher, { refreshInterval: 60000 })
-  const { data: heatmap } = useSWR<ApiHeatmap[]>(urls.heatmap(),  swrFetcher, { refreshInterval: 60000 })
-  const { data: signals } = useSWR<ApiSignal[]> (urls.signals(),  swrFetcher, { refreshInterval: 30000 })
+/* ── Marquee data ─────────────────────────────────────────────────── */
+const MARQUEE_ITEMS = [
+  { q: 'Will the Fed cut rates in June 2026?', tag: 'MISMATCH', pct: '+35%' },
+  { q: 'Will BTC reach $100k before July?',    tag: 'MONITOR',  pct: '+11%' },
+  { q: 'Will OpenAI go public before 2027?',   tag: 'MISMATCH', pct: '+21%' },
+  { q: 'Will GPT-5 ship before August 2026?',  tag: 'ALIGNED',  pct: '-2%'  },
+  { q: 'Will the S&P 500 hit 7000 this year?', tag: 'ALIGNED',  pct: '+2%'  },
+  { q: 'Will ETH flip BTC by market cap?',     tag: 'MISMATCH', pct: '+18%' },
+]
 
-  // Order book for first market
-  const firstMarketId = markets?.[0]?.conditionId ?? null
-  const { data: orderBook } = useSWR<ApiOrderBook>(
-    firstMarketId ? urls.orderBook(firstMarketId) : null,
-    swrFetcher,
-    { refreshInterval: 15000 }
-  )
-
-  const safeMarkets = markets ?? []
-  const safeHeatmap = heatmap ?? []
-  const safeSignals = signals ?? []
-
-  const insights: Insight[] = safeSignals.slice(0, 3).map(s => ({
-    id:     String(s.id),
-    time:   new Date(s.createdAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }),
-    signal: s.confidence === 'HIGH' ? 'high' : s.confidence === 'MONITOR' ? 'monitor' : 'normal',
-    text:   s.summary,
-  }))
-
-  const tickerItems = safeSignals.map(s => ({
-    id:   String(s.id),
-    text: `${s.marketQuestion} — ${s.gap > 0 ? '+' : ''}${s.gap.toFixed(1)}% gap detected`,
-  }))
+/* ── Magnifier text reveal ────────────────────────────────────────── */
+function MagnifierLine({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x: -200, y: 0 })
 
   return (
-    <main className="page-wrapper">
-      <Navbar />
+    <div
+      ref={ref}
+      className="magnifier-line"
+      onMouseMove={e => {
+        const rect = ref.current!.getBoundingClientRect()
+        setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      }}
+      onMouseLeave={() => setPos({ x: -200, y: 0 })}
+    >
+      <span className="magnifier-base">{text}</span>
+      <span
+        className="magnifier-lens"
+        style={{
+          maskImage: `radial-gradient(circle 70px at ${pos.x}px ${pos.y}px, black 60%, transparent 100%)`,
+          WebkitMaskImage: `radial-gradient(circle 70px at ${pos.x}px ${pos.y}px, black 60%, transparent 100%)`,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  )
+}
 
-      {tickerItems.length > 0 && <Ticker items={tickerItems} />}
+/* ── Page ──────────────────────────────────────────────────────────── */
+export default function LandingPage() {
+  return (
+    <main className="landing-root">
 
-      <div className="grid-stats">
-        <StatCard label="MARKETS TRACKED"  value={stats ? stats.totalMarkets.toLocaleString() : '—'} sub="across 7 categories" />
-        <StatCard label="ACTIVE SIGNALS"   value={stats ? String(stats.activeSignals) : '—'} sub="AI mismatches detected" valueColor="purple" />
-        <StatCard label="AVG MISMATCH"     value={stats ? `${stats.avgMismatch > 0 ? '+' : ''}${stats.avgMismatch.toFixed(1)}%` : '—'} sub="market vs AI estimate" valueColor="yellow" subColor="yellow" />
-        <StatCard label="VOLATILITY"       value={stats?.volatilityLevel ?? '—'}
-          sub={stats ? `${stats.volatilitySpikes} spikes in 1h` : 'loading…'}
-          valueColor={stats?.volatilityLevel === 'HIGH' ? 'red' : stats?.volatilityLevel === 'MEDIUM' ? 'amber' : 'yellow'}
-          subColor={stats?.volatilityLevel === 'HIGH' ? 'red' : 'default'} />
-      </div>
+      {/* ── HERO ──────────────────────────────────────────────────── */}
+      <section className="hero-section">
+        <div className="hero-bg-glow hero-bg-glow-1" />
+        <div className="hero-bg-glow hero-bg-glow-2" />
+        <SynapseNetwork />
 
-      <MarketCarousel markets={safeMarkets} />
+        <nav className="landing-nav">
+          <span className="landing-logo">SYNAPSE</span>
+          <Link href="/dashboard" className="landing-nav-cta">
+            Launch dashboard <span className="arrow">→</span>
+          </Link>
+        </nav>
 
-      <div className="grid-main">
-        <MainChart markets={safeMarkets} />
-        <div className="insight-card-wrap">
-          <InsightFeed insights={insights.length > 0 ? insights : [
-            { id: '0', time: '—', signal: 'normal', text: 'Waiting for AI signals…' }
-          ]} />
+        <div className="hero-content">
+          <div className="hero-eyebrow">
+            <span className="hero-eyebrow-dot" />
+            AI-POWERED PREDICTION MARKET INTELLIGENCE
+          </div>
+
+          <h1 className="hero-title">
+            <span className="hero-title-line">Markets lie.</span>
+            <span className="hero-title-line hero-title-accent">Synapse listens.</span>
+          </h1>
+
+          <p className="hero-sub">
+            Real-time AI that detects when prediction market odds diverge from
+            what's actually happening in the world — before the crowd catches up.
+          </p>
+
+          <div className="hero-actions">
+            <Link href="/dashboard" className="btn-primary">
+              <span>Launch dashboard</span>
+              <span className="btn-shine" />
+            </Link>
+            <a href="#how" className="btn-secondary">See how it works</a>
+          </div>
+
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <span className="hero-stat-num"><CountUp end={1284} /></span>
+              <span className="hero-stat-label">Markets tracked</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat">
+              <span className="hero-stat-num accent-yellow"><CountUp end={8.3} decimals={1} suffix="%" /></span>
+              <span className="hero-stat-label">Avg mismatch found</span>
+            </div>
+            <div className="hero-stat-divider" />
+            <div className="hero-stat">
+              <span className="hero-stat-num accent-purple"><CountUp end={24} suffix="/7" /></span>
+              <span className="hero-stat-label">Live monitoring</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="grid-bottom">
-        <LiveFeed />
-        <OrderBook data={orderBook ?? null} />
-        {safeHeatmap.length > 0 && <Heatmap data={safeHeatmap} />}
-      </div>
+        <div className="hero-scroll-hint">
+          <span>Scroll</span>
+          <div className="hero-scroll-line"><div className="hero-scroll-dot" /></div>
+        </div>
+      </section>
+
+      {/* ── MARQUEE ───────────────────────────────────────────────── */}
+      <section className="marquee-section">
+        <div className="marquee-track">
+          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+            <div key={i} className={`marquee-card marquee-${item.tag.toLowerCase()}`}>
+              <span className="marquee-tag">{item.tag}</span>
+              <span className="marquee-q">{item.q}</span>
+              <span className="marquee-pct">{item.pct}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ──────────────────────────────────────────── */}
+      <section className="how-section" id="how">
+        <Reveal>
+          <div className="section-header">
+            <span className="section-eyebrow">THE DETECTION LOOP</span>
+            <h2 className="section-title">
+              <MagnifierLine text="Three signals, one verdict." />
+            </h2>
+          </div>
+        </Reveal>
+
+        <div className="how-grid">
+          <Reveal delay={0}>
+            <div className="how-card glass-card">
+              <div className="how-card-glare" />
+              <div className="how-icon how-icon-1">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3 8 4-16 3 8h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <span className="how-num">01</span>
+              <h3>Stream live odds</h3>
+              <p>Every trade, every order book shift on Polymarket flows in over WebSocket, milliseconds after it happens.</p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={120}>
+            <div className="how-card glass-card">
+              <div className="how-card-glare" />
+              <div className="how-icon how-icon-2">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </div>
+              <span className="how-num">02</span>
+              <h3>Cross-reference reality</h3>
+              <p>An AI agent scrapes breaking news and sentiment, then compares it against what the market is pricing in.</p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={240}>
+            <div className="how-card glass-card">
+              <div className="how-card-glare" />
+              <div className="how-icon how-icon-3">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <span className="how-num">03</span>
+              <h3>Surface the gap</h3>
+              <p>When odds and reality diverge, Synapse fires a signal — ranked by confidence, before the crowd corrects it.</p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── LIVE PREVIEW STRIP ────────────────────────────────────── */}
+      <section className="preview-section">
+        <Reveal>
+          <div className="preview-card glass-card">
+            <div className="preview-glow" />
+            <div className="preview-header">
+              <span className="preview-label">FED RATE CUT — JUNE 2026</span>
+              <span className="preview-badge">HIGH CONFIDENCE</span>
+            </div>
+            <div className="preview-gauge">
+              <div className="preview-gauge-row">
+                <span>Market odds</span>
+                <span className="preview-gauge-val accent-yellow">78%</span>
+              </div>
+              <div className="preview-gauge-track">
+                <div className="preview-gauge-fill preview-fill-market" style={{ width: '78%' }} />
+              </div>
+              <div className="preview-gauge-row">
+                <span>AI estimate</span>
+                <span className="preview-gauge-val accent-purple">43%</span>
+              </div>
+              <div className="preview-gauge-track">
+                <div className="preview-gauge-fill preview-fill-ai" style={{ width: '43%' }} />
+              </div>
+            </div>
+            <p className="preview-summary">
+              Market pricing a cut at 78% — but scraped Fed minutes imply only 43%.
+              Possible overreaction to last week's CPI print.
+            </p>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── CLOSING CTA ───────────────────────────────────────────── */}
+      <section className="cta-section">
+        <div className="cta-bg-glow" />
+        <Reveal>
+          <h2 className="cta-title">Stop trusting the crowd.<br/>Start watching the gap.</h2>
+          <Link href="/dashboard" className="btn-primary btn-large">
+            <span>Launch dashboard</span>
+            <span className="btn-shine" />
+          </Link>
+        </Reveal>
+      </section>
+
+      <footer className="landing-footer">
+        <span>SYNAPSE — Prediction market intelligence</span>
+        <span className="footer-dot">·</span>
+        <span>Built with Spring Boot, Kafka, Next.js</span>
+      </footer>
     </main>
   )
 }
