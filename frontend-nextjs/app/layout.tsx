@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Mono, DM_Sans } from 'next/font/google'
+import { IBM_Plex_Mono, DM_Sans, Fraunces } from 'next/font/google'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -16,6 +16,14 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: 'swap',
 })
 
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  weight: ['500', '600'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'Synapse — Prediction Market Intelligence',
   description: 'Real-time AI that detects when prediction markets are lying.',
@@ -28,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${ibmPlexMono.variable} ${fraunces.variable}`}>
       <body
         style={{
           backgroundColor: '#032425',
